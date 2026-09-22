@@ -4,9 +4,13 @@ import type { PrismaClient, Video } from "@video-streaming/database";
 import { OutboxRepository, VideoRepository } from "@video-streaming/database";
 import { EXCHANGES, ROUTING_KEYS, type VideoUploaded } from "@video-streaming/contracts";
 import { StorageClient } from "@video-streaming/storage";
+import { timer, type Observable } from "rxjs";
 import { PRISMA_CLIENT, RAW_BUCKET, STORAGE_CLIENT } from "../tokens";
+import { createStatusStream, type StatusPayload } from "../status/status-stream";
 import type { CompleteUploadDto } from "./dto/complete-upload.dto";
 import type { CreateVideoDto } from "./dto/create-video.dto";
+
+const STATUS_POLL_INTERVAL_MS = 1_000;
 
 export interface StartUploadResult {
   videoId: string;
@@ -93,5 +97,18 @@ export class VideosService {
       throw new NotFoundException(`Video ${videoId} not found`);
     }
     return video;
+  }
+
+  streamStatus(videoId: string): Observable<StatusPayload> {
+    const poll = async (): Promise<StatusPayload | null> => {
+      const video = await this.videos.findById(this.prisma, videoId);
+      if (!video) return null;
+      return {
+        status: video.status,
+        manifestKey: video.manifestKey,
+        failureReason: video.failureReason,
+      };
+    };
+    return createStatusStream(poll, timer(0, STATUS_POLL_INTERVAL_MS));
   }
 }

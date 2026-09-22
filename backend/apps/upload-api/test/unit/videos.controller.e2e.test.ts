@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { Test } from "@nestjs/testing";
 import request from "supertest";
+import { of } from "rxjs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { VideosController } from "../../src/videos/videos.controller";
 import { VideosService } from "../../src/videos/videos.service";
@@ -13,6 +14,7 @@ describe("VideosController (HTTP)", () => {
     presignPart: vi.fn(),
     completeUpload: vi.fn(),
     getVideo: vi.fn(),
+    streamStatus: vi.fn(),
   };
 
   beforeEach(async () => {
@@ -80,5 +82,17 @@ describe("VideosController (HTTP)", () => {
     const response = await request(app.getHttpServer()).get("/videos/v1").expect(200);
 
     expect(response.body).toEqual({ id: "v1", status: "READY" });
+  });
+
+  it("GET /videos/:id/events streams status updates as SSE", async () => {
+    videosService.streamStatus.mockReturnValue(
+      of({ status: "READY", manifestKey: "videos/v1/master.m3u8", failureReason: null }),
+    );
+
+    const response = await request(app.getHttpServer()).get("/videos/v1/events").expect(200);
+
+    expect(videosService.streamStatus).toHaveBeenCalledWith("v1");
+    expect(response.headers["content-type"]).toContain("text/event-stream");
+    expect(response.text).toContain('data: {"status":"READY"');
   });
 });

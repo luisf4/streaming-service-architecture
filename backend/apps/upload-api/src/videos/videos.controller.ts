@@ -1,9 +1,15 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post } from "@nestjs/common";
+import { Body, Controller, Get, Param, ParseIntPipe, Post, Sse } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Video } from "@video-streaming/database";
+import { map, type Observable } from "rxjs";
 import { CompleteUploadDto } from "./dto/complete-upload.dto";
 import { CreateVideoDto } from "./dto/create-video.dto";
+import type { StatusPayload } from "../status/status-stream";
 import { VideosService } from "./videos.service";
+
+interface MessageEvent {
+  data: StatusPayload;
+}
 
 @ApiTags("videos")
 @Controller("videos")
@@ -32,5 +38,10 @@ export class VideosController {
   @Get(":id")
   getVideo(@Param("id") id: string): Promise<Video> {
     return this.videosService.getVideo(id);
+  }
+
+  @Sse(":id/events")
+  streamStatus(@Param("id") id: string): Observable<MessageEvent> {
+    return this.videosService.streamStatus(id).pipe(map((data) => ({ data })));
   }
 }
