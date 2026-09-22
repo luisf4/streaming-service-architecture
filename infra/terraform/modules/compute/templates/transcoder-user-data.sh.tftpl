@@ -1,0 +1,16 @@
+#!/bin/bash
+set -euxo pipefail
+
+dnf install -y docker
+systemctl enable --now docker
+
+aws ecr get-login-password --region "${region}" | docker login --username AWS --password-stdin "${account_id}.dkr.ecr.${region}.amazonaws.com"
+
+docker run -d --name transcoder --restart unless-stopped \
+  -e "DATABASE_URL=postgresql://streaming:streaming@${core_private_ip}:5432/streaming" \
+  -e "RABBITMQ_URL=amqp://streaming:streaming@${core_private_ip}:5672" \
+  -e "S3_REGION=${region}" \
+  -e "S3_RAW_BUCKET=${raw_bucket_name}" \
+  -e "S3_HLS_BUCKET=${hls_bucket_name}" \
+  -e "OTEL_EXPORTER_OTLP_ENDPOINT=http://${core_private_ip}:4318/v1/traces" \
+  "${transcoder_image}"

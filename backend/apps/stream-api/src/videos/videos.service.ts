@@ -1,7 +1,7 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { VideoRepository, type PrismaClient } from "@video-streaming/database";
-import { StorageClient } from "@video-streaming/storage";
-import { MANIFEST_URL_EXPIRY_SEC, PRISMA_CLIENT, STORAGE_CLIENT } from "../tokens";
+import { MANIFEST_URL_EXPIRY_SEC, MANIFEST_URL_SIGNER, PRISMA_CLIENT } from "../tokens";
+import type { ManifestUrlSigner } from "./manifest-url-signer";
 import type { PlayResponseDto } from "./play-response.dto";
 
 const videos = new VideoRepository();
@@ -10,7 +10,7 @@ const videos = new VideoRepository();
 export class VideosService {
   constructor(
     @Inject(PRISMA_CLIENT) private readonly prisma: PrismaClient,
-    @Inject(STORAGE_CLIENT) private readonly storage: StorageClient,
+    @Inject(MANIFEST_URL_SIGNER) private readonly signer: ManifestUrlSigner,
     @Inject(MANIFEST_URL_EXPIRY_SEC) private readonly manifestUrlExpirySec: number,
   ) {}
 
@@ -23,7 +23,7 @@ export class VideosService {
       throw new ConflictException(`Video ${videoId} is not ready yet (status: ${video.status})`);
     }
 
-    const manifestUrl = await this.storage.presignGetObject(video.manifestKey, this.manifestUrlExpirySec);
+    const manifestUrl = await this.signer.sign(video.manifestKey, this.manifestUrlExpirySec);
     return { manifestUrl, expiresInSec: this.manifestUrlExpirySec };
   }
 }

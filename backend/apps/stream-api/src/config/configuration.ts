@@ -11,6 +11,19 @@ export interface AppConfig {
     hlsBucket: string;
   };
   manifestUrlExpirySec: number;
+  cdn?: {
+    domainName: string;
+    keyPairId: string;
+    privateKey: string;
+  };
+}
+
+function loadCdnConfig(): AppConfig["cdn"] {
+  const domainName = process.env.CDN_DOMAIN_NAME;
+  const keyPairId = process.env.CDN_KEY_PAIR_ID;
+  const privateKey = process.env.CDN_SIGNING_PRIVATE_KEY;
+  if (!domainName || !keyPairId || !privateKey) return undefined;
+  return { domainName, keyPairId, privateKey };
 }
 
 export default (): AppConfig => ({
@@ -26,4 +39,5 @@ export default (): AppConfig => ({
     hlsBucket: process.env.S3_HLS_BUCKET ?? "hls",
   },
   manifestUrlExpirySec: Number(process.env.MANIFEST_URL_EXPIRY_SEC ?? 3600),
+  cdn: loadCdnConfig(),
 });

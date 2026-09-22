@@ -3,7 +3,8 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { createPrismaClient, type PrismaClient } from "@video-streaming/database";
 import { createS3Client, StorageClient } from "@video-streaming/storage";
 import configuration, { type AppConfig } from "./config/configuration";
-import { MANIFEST_URL_EXPIRY_SEC, PRISMA_CLIENT, STORAGE_CLIENT } from "./tokens";
+import { MANIFEST_URL_EXPIRY_SEC, MANIFEST_URL_SIGNER, PRISMA_CLIENT } from "./tokens";
+import { CloudFrontManifestUrlSigner, S3ManifestUrlSigner, type ManifestUrlSigner } from "./videos/manifest-url-signer";
 import { VideosController } from "./videos/videos.controller";
 import { VideosService } from "./videos/videos.service";
 
@@ -26,10 +27,17 @@ import { VideosService } from "./videos/videos.service";
       inject: [ConfigService],
     },
     {
-      provide: STORAGE_CLIENT,
-      useFactory: (config: ConfigService<AppConfig, true>): StorageClient => {
+      // Prod (Fase 10): CloudFront signed URLs against the HLS
+      // distribution. Local/dev (no CDN configured): plain S3/MinIO
+      // presigned GET, same as before.
+      provide: MANIFEST_URL_SIGNER,
+      useFactory: (config: ConfigService<AppConfig, true>): ManifestUrlSigner => {
+        const cdn = config.get("cdn", { infer: true });
+        if (cdn) {
+          return new CloudFrontManifestUrlSigner(cdn);
+        }
         const storage = config.get("storage", { infer: true });
-        return new StorageClient(createS3Client(storage), storage.hlsBucket);
+        return new S3ManifestUrlSigner(new StorageClient(createS3Client(storage), storage.hlsBucket));
       },
       inject: [ConfigService],
     },

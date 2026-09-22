@@ -1,0 +1,104 @@
+#!/bin/bash
+# Runs everything except the transcoder fleet: Postgres, RabbitMQ,
+# upload-api, stream-api, validator, dispatcher, aggregator, web, plus
+# Jaeger/Prometheus/Grafana for observability. Not layered with
+# docker-compose on purpose - keeping this to individual `docker run`
+# commands avoids having to ship/template a full compose file onto the
+# instance just for a single-host demo deployment.
+set -euxo pipefail
+
+dnf install -y docker jq
+systemctl enable --now docker
+
+aws ecr get-login-password --region "${region}" | docker login --username AWS --password-stdin "${account_id}.dkr.ecr.${region}.amazonaws.com"
+
+docker network create streaming || true
+
+docker volume create postgres-data || true
+docker run -d --name postgres --restart unless-stopped --network streaming \
+  -p 5432:5432 \
+  -e POSTGRES_USER=streaming -e POSTGRES_PASSWORD=streaming -e POSTGRES_DB=streaming \
+  -v postgres-data:/var/lib/postgresql/data \
+  postgres:16-alpine
+
+docker volume create rabbitmq-data || true
+docker run -d --name rabbitmq --restart unless-stopped --network streaming \
+  -p 5672:5672 -p 15672:15672 \
+  -e RABBITMQ_DEFAULT_USER=streaming -e RABBITMQ_DEFAULT_PASS=streaming \
+  -v rabbitmq-data:/var/lib/rabbitmq \
+  rabbitmq:3.13-management-alpine
+
+docker run -d --name jaeger --restart unless-stopped --network streaming \
+  -p 16686:16686 -p 4318:4318 \
+  -e COLLECTOR_OTLP_ENABLED=true \
+  jaegertracing/all-in-one:1.62
+
+APP_ENV=(
+  -e "DATABASE_URL=postgresql://streaming:streaming@postgres:5432/streaming"
+  -e "RABBITMQ_URL=amqp://streaming:streaming@rabbitmq:5672"
+  -e "S3_REGION=${region}"
+  -e "S3_RAW_BUCKET=${raw_bucket_name}"
+  -e "S3_HLS_BUCKET=${hls_bucket_name}"
+  -e "OTEL_EXPORTER_OTLP_ENDPOINT=${otlp_endpoint}"
+)
+
+docker run -d --name upload-api --restart unless-stopped --network streaming \
+  -p 3001:3001 -e PORT=3001 "$${APP_ENV[@]}" \
+  "${upload_api_image}"
+
+cdn_signing_private_key=$(aws ssm get-parameter --region "${region}" \
+  --name "${cdn_signing_key_ssm_parameter}" --with-decryption \
+  --query 'Parameter.Value' --output text)
+
+docker run -d --name stream-api --restart unless-stopped --network streaming \
+  -p 3002:3002 -e PORT=3002 "$${APP_ENV[@]}" \
+  -e "CDN_DOMAIN_NAME=${cdn_domain_name}" \
+  -e "CDN_KEY_PAIR_ID=${cdn_key_pair_id}" \
+  -e "CDN_SIGNING_PRIVATE_KEY=$cdn_signing_private_key" \
+  "${stream_api_image}"
+
+docker run -d --name validator --restart unless-stopped --network streaming \
+  "$${APP_ENV[@]}" "${validator_image}"
+
+docker run -d --name dispatcher --restart unless-stopped --network streaming \
+  "$${APP_ENV[@]}" "${dispatcher_image}"
+
+docker run -d --name aggregator --restart unless-stopped --network streaming \
+  "$${APP_ENV[@]}" "${aggregator_image}"
+
+docker run -d --name web --restart unless-stopped --network streaming \
+  -p 3003:3000 \
+  -e "NEXT_PUBLIC_UPLOAD_API_URL=http://$(curl -s http://169.254.169.254/latest/meta-data/public-hostname):3001" \
+  -e "NEXT_PUBLIC_STREAM_API_URL=http://$(curl -s http://169.254.169.254/latest/meta-data/public-hostname):3002" \
+  "${web_image}"
+
+# Publishes transcode.q's depth to CloudWatch every minute - the ASG's
+# scaling policy in the compute module's asg.tf watches this custom metric
+# (RabbitMQ has no native CloudWatch integration).
+cat > /usr/local/bin/publish-queue-depth.sh <<'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+depth=$(curl -sf -u streaming:streaming http://localhost:15672/api/queues/%2F/transcode.q | jq '.messages // 0')
+aws cloudwatch put-metric-data --region "${region}" --namespace Streaming \
+  --metric-name QueueDepth --dimensions Queue=transcode.q --value "$depth"
+SCRIPT
+chmod +x /usr/local/bin/publish-queue-depth.sh
+
+cat > /etc/systemd/system/publish-queue-depth.service <<'UNIT'
+[Unit]
+Description=Publish transcode.q depth to CloudWatch
+[Service]
+ExecStart=/usr/local/bin/publish-queue-depth.sh
+UNIT
+
+cat > /etc/systemd/system/publish-queue-depth.timer <<'UNIT'
+[Unit]
+Description=Run publish-queue-depth every minute
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+[Install]
+WantedBy=timers.target
+UNIT
+
+systemctl enable --now publish-queue-depth.timer
