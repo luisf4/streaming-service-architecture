@@ -1,0 +1,35 @@
+{
+  "name": "@video-streaming/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "vitest run test/unit",
+    "test:watch": "vitest",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "generate:api-types": "echo 'run against a live backend: openapi-typescript http://localhost:3001/docs-json -o src/lib/generated/upload-api.ts && openapi-typescript http://localhost:3002/docs-json -o src/lib/generated/stream-api.ts'"
+  },
+  "dependencies": {
+    "hls.js": "^1.5.18",
+    "next": "^15.0.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.0.1",
+    "@testing-library/user-event": "^14.5.2",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.1",
+    "@types/react-dom": "^19.0.2",
+    "@video-streaming/config": "workspace:*",
+    "@vitejs/plugin-react": "^4.3.4",
+    "jsdom": "^25.0.1",
+    "openapi-typescript": "^7.4.4",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.8"
+  }
+}
