@@ -15,8 +15,14 @@ export const ROUTING_KEYS = {
 
 export const QUEUES = {
   validator: "validator.q",
+  validatorRetry: "validator.retry.q",
+  validatorDlq: "validator.dlq",
   dispatcher: "dispatcher.q",
+  dispatcherRetry: "dispatcher.retry.q",
+  dispatcherDlq: "dispatcher.dlq",
   aggregator: "aggregator.q",
+  aggregatorRetry: "aggregator.retry.q",
+  aggregatorDlq: "aggregator.dlq",
   uploadApiStatus: "upload-api.status.q",
   uploadApiStatusRetry: "upload-api.status.retry.q",
   uploadApiStatusDlq: "upload-api.status.dlq",

@@ -5,7 +5,7 @@ import { connectRabbitMQ, type RabbitConnection } from "../../src/connection";
 import { EventConsumer } from "../../src/consumer";
 import { EventPublisher } from "../../src/publisher";
 import { InMemoryIdempotencyStore } from "../../src/idempotency";
-import { assertTopology } from "../../src/topology";
+import { assertTopology, getRetrySpec } from "../../src/topology";
 import { isDockerAvailable } from "../docker";
 import { EXCHANGES, QUEUES, ROUTING_KEYS } from "@video-streaming/contracts";
 
@@ -35,6 +35,7 @@ describe.skipIf(!dockerAvailable)("RabbitMQ integration (Testcontainers)", () =>
     const publisher = new EventPublisher(rabbit.channel);
     const idempotency = new InMemoryIdempotencyStore();
     const consumer = new EventConsumer(rabbit.channel, idempotency);
+    const spec = getRetrySpec(QUEUES.validator);
 
     const eventId = randomUUID();
     const event = {
@@ -50,10 +51,10 @@ describe.skipIf(!dockerAvailable)("RabbitMQ integration (Testcontainers)", () =>
     await consumer.start(
       {
         queue: QUEUES.validator,
-        retryExchange: EXCHANGES.transcodeJobs,
-        retryRoutingKey: "transcode.retry",
-        dlqExchange: EXCHANGES.transcodeJobs,
-        dlqRoutingKey: "transcode.dead",
+        retryExchange: spec.exchange,
+        retryRoutingKey: spec.retryRoutingKey,
+        dlqExchange: spec.exchange,
+        dlqRoutingKey: spec.deadRoutingKey,
         maxAttempts: 3,
         prefetch: 1,
       },
@@ -73,6 +74,7 @@ describe.skipIf(!dockerAvailable)("RabbitMQ integration (Testcontainers)", () =>
   it("dead-letters a message after 3 failed attempts", async () => {
     const publisher = new EventPublisher(rabbit.channel);
     const consumer = new EventConsumer(rabbit.channel, new InMemoryIdempotencyStore());
+    const spec = getRetrySpec(QUEUES.transcode);
 
     const eventId = randomUUID();
     const event = {
@@ -87,10 +89,10 @@ describe.skipIf(!dockerAvailable)("RabbitMQ integration (Testcontainers)", () =>
     await consumer.start(
       {
         queue: QUEUES.transcode,
-        retryExchange: EXCHANGES.transcodeJobs,
-        retryRoutingKey: "transcode.retry",
-        dlqExchange: EXCHANGES.transcodeJobs,
-        dlqRoutingKey: "transcode.dead",
+        retryExchange: spec.exchange,
+        retryRoutingKey: spec.retryRoutingKey,
+        dlqExchange: spec.exchange,
+        dlqRoutingKey: spec.deadRoutingKey,
         maxAttempts: 3,
         prefetch: 1,
       },

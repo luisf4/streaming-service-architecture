@@ -1,8 +1,8 @@
 import { Inject, Injectable, Logger, type OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PrismaIdempotencyStore, VideoRepository, type PrismaClient } from "@video-streaming/database";
-import { EXCHANGES, QUEUES } from "@video-streaming/contracts";
-import { EventConsumer, STATUS_DEAD_ROUTING_KEY, STATUS_RETRY_ROUTING_KEY, type ConsumerChannel } from "@video-streaming/messaging";
+import { QUEUES } from "@video-streaming/contracts";
+import { EventConsumer, getRetrySpec, type ConsumerChannel } from "@video-streaming/messaging";
 import type { AppConfig } from "../config/configuration";
 import { PRISMA_CLIENT, RABBIT_CHANNEL } from "../tokens";
 
@@ -25,13 +25,14 @@ export class StatusConsumerService implements OnModuleInit {
   async onModuleInit(): Promise<void> {
     const idempotency = new PrismaIdempotencyStore(this.prisma, "upload-api.status");
     const consumer = new EventConsumer(this.channel, idempotency);
+    const spec = getRetrySpec(QUEUES.uploadApiStatus);
     await consumer.start(
       {
         queue: QUEUES.uploadApiStatus,
-        retryExchange: EXCHANGES.videoEvents,
-        retryRoutingKey: STATUS_RETRY_ROUTING_KEY,
-        dlqExchange: EXCHANGES.videoEvents,
-        dlqRoutingKey: STATUS_DEAD_ROUTING_KEY,
+        retryExchange: spec.exchange,
+        retryRoutingKey: spec.retryRoutingKey,
+        dlqExchange: spec.exchange,
+        dlqRoutingKey: spec.deadRoutingKey,
         maxAttempts: this.config.get("maxAttempts", { infer: true }),
         prefetch: 10,
       },
