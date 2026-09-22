@@ -1,0 +1,116 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum VideoStatus {
+  UPLOADING
+  UPLOADED
+  PROCESSING
+  READY
+  FAILED
+
+  @@map("video_status")
+}
+
+enum TranscodeJobStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+
+  @@map("transcode_job_status")
+}
+
+model Video {
+  id            String      @id @default(uuid()) @db.Uuid
+  title         String
+  description   String?
+  status        VideoStatus @default(UPLOADING)
+  durationSec   Int?        @map("duration_sec")
+  manifestKey   String?     @map("manifest_key")
+  failureReason String?     @map("failure_reason")
+  createdAt     DateTime    @default(now()) @map("created_at")
+  updatedAt     DateTime    @updatedAt @map("updated_at")
+
+  chunks        Chunk[]
+  renditions    Rendition[]
+  transcodeJobs TranscodeJob[]
+
+  @@map("videos")
+}
+
+model Chunk {
+  id          String   @id @default(uuid()) @db.Uuid
+  videoId     String   @map("video_id") @db.Uuid
+  sequence    Int
+  startSec    Float    @map("start_sec")
+  durationSec Float    @map("duration_sec")
+  sourceKey   String   @map("source_key")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  video         Video          @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  transcodeJobs TranscodeJob[]
+  renditions    Rendition[]
+
+  @@unique([videoId, sequence])
+  @@map("chunks")
+}
+
+model TranscodeJob {
+  id            String             @id @default(uuid()) @db.Uuid
+  videoId       String             @map("video_id") @db.Uuid
+  chunkId       String             @map("chunk_id") @db.Uuid
+  resolution    String
+  status        TranscodeJobStatus @default(PENDING)
+  attempts      Int                @default(0)
+  failureReason String?            @map("failure_reason")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  updatedAt     DateTime           @updatedAt @map("updated_at")
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  chunk Chunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  @@unique([chunkId, resolution])
+  @@map("transcode_jobs")
+}
+
+model Rendition {
+  id           String   @id @default(uuid()) @db.Uuid
+  videoId      String   @map("video_id") @db.Uuid
+  chunkId      String   @map("chunk_id") @db.Uuid
+  resolution   String
+  segmentKey   String   @map("segment_key")
+  sequence     Int
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  video Video @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  chunk Chunk @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  @@unique([chunkId, resolution])
+  @@map("renditions")
+}
+
+model OutboxMessage {
+  id          String    @id @default(uuid()) @db.Uuid
+  exchange    String
+  routingKey  String    @map("routing_key")
+  payload     Json
+  createdAt   DateTime  @default(now()) @map("created_at")
+  publishedAt DateTime? @map("published_at")
+
+  @@index([publishedAt])
+  @@map("outbox")
+}
+
+model ProcessedEvent {
+  eventId     String   @id @map("event_id") @db.Uuid
+  eventType   String   @map("event_type")
+  processedAt DateTime @default(now()) @map("processed_at")
+
+  @@map("processed_events")
+}
