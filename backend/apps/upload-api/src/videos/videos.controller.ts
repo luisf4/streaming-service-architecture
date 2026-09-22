@@ -1,9 +1,11 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Post } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import type { Video } from "@video-streaming/database";
 import { CompleteUploadDto } from "./dto/complete-upload.dto";
 import { CreateVideoDto } from "./dto/create-video.dto";
 import { VideosService } from "./videos.service";
 
+@ApiTags("videos")
 @Controller("videos")
 export class VideosController {
   constructor(private readonly videosService: VideosService) {}

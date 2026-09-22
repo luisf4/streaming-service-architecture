@@ -12,7 +12,7 @@ async function bootstrap() {
 
   const document = SwaggerModule.createDocument(
     app,
-    new DocumentBuilder().setTitle("upload-api").setVersion("1.0").build(),
+    new DocumentBuilder().setTitle("stream-api").setVersion("1.0").build(),
   );
   SwaggerModule.setup("docs", app, document);
 

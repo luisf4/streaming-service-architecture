@@ -1,5 +1,5 @@
 {
-  "name": "@video-streaming/upload-api",
+  "name": "@video-streaming/stream-api",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -19,21 +19,17 @@
     "@nestjs/core": "^10.4.15",
     "@nestjs/platform-express": "^10.4.15",
     "@nestjs/swagger": "^7.4.2",
-    "@video-streaming/contracts": "workspace:*",
     "@video-streaming/database": "workspace:*",
-    "@video-streaming/messaging": "workspace:*",
     "@video-streaming/storage": "workspace:*",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.14.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",
     "@nestjs/testing": "^10.4.15",
+    "@swc/core": "^1.9.3",
     "@types/supertest": "^6.0.2",
     "@video-streaming/config": "workspace:*",
-    "@swc/core": "^1.9.3",
     "supertest": "^7.0.0",
     "typescript": "^5.7.0",
     "unplugin-swc": "^1.5.1",
