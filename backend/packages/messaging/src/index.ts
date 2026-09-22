@@ -5,3 +5,4 @@ export * from "./consumer";
 export * from "./topology";
 export * from "./connection";
 export * from "./queue-depth";
+export * from "./resilient-connection";

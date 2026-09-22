@@ -2,11 +2,12 @@ import { QUEUES } from "@video-streaming/contracts";
 import { createPrismaClient, PrismaIdempotencyStore } from "@video-streaming/database";
 import {
   assertTopology,
-  connectRabbitMQ,
+  connectWithRetry,
   EventConsumer,
   EventPublisher,
   getRetrySpec,
   startQueueDepthPoller,
+  type RabbitConnection,
 } from "@video-streaming/messaging";
 import { initTracing, MetricsRegistry, startMetricsServer } from "@video-streaming/observability";
 import { createS3Client, StorageClient } from "@video-streaming/storage";
@@ -25,51 +26,63 @@ async function main(): Promise<void> {
   await startMetricsServer(metrics, config.metricsPort);
 
   const prisma = createPrismaClient({ datasources: { db: { url: config.databaseUrl } } });
-  const rabbit = await connectRabbitMQ(config.rabbitmqUrl);
-  await assertTopology(rabbit.channel);
-  startQueueDepthPoller(
-    rabbit.channel,
-    [QUEUES.transcode, QUEUES.transcodeRetry, QUEUES.transcodeDlq],
-    (queue, depth) => metrics.setQueueDepth(queue, depth),
-    config.queueDepthPollMs,
-  );
-
   const s3 = createS3Client(config.storage);
   const rawStorage = new StorageClient(s3, config.storage.rawBucket);
   const hlsStorage = new StorageClient(s3, config.storage.hlsBucket);
-  const publisher = new EventPublisher(rabbit.channel);
-  const idempotency = new PrismaIdempotencyStore(prisma, "transcoder");
-  const consumer = new EventConsumer(rabbit.channel, idempotency, { serviceName: SERVICE_NAME, metrics });
-  const spec = getRetrySpec(QUEUES.transcode);
 
-  await consumer.start(
-    {
-      queue: QUEUES.transcode,
-      retryExchange: spec.exchange,
-      retryRoutingKey: spec.retryRoutingKey,
-      dlqExchange: spec.exchange,
-      dlqRoutingKey: spec.deadRoutingKey,
-      maxAttempts: config.maxAttempts,
-      prefetch: config.prefetch,
-    },
-    (event) =>
-      handleTranscodeRequested(event as TranscodeRequested, {
-        publisher,
-        presignGet: (key) => rawStorage.presignGetObject(key),
-        putObject: (key, body) => hlsStorage.putObject(key, body),
-        transcode: (options) => transcodeChunk({ ...options, ffmpegPath: config.ffmpegPath }),
-      }),
-  );
+  let currentConsumer: EventConsumer | undefined;
 
-  console.log("transcoder listening on", QUEUES.transcode);
+  const onReady = async (rabbit: RabbitConnection): Promise<void> => {
+    await assertTopology(rabbit.channel);
+    startQueueDepthPoller(
+      rabbit.channel,
+      [QUEUES.transcode, QUEUES.transcodeRetry, QUEUES.transcodeDlq],
+      (queue, depth) => metrics.setQueueDepth(queue, depth),
+      config.queueDepthPollMs,
+    );
+
+    const publisher = new EventPublisher(rabbit.channel);
+    const idempotency = new PrismaIdempotencyStore(prisma, "transcoder");
+    const consumer = new EventConsumer(rabbit.channel, idempotency, { serviceName: SERVICE_NAME, metrics });
+    currentConsumer = consumer;
+    const spec = getRetrySpec(QUEUES.transcode);
+
+    await consumer.start(
+      {
+        queue: QUEUES.transcode,
+        retryExchange: spec.exchange,
+        retryRoutingKey: spec.retryRoutingKey,
+        dlqExchange: spec.exchange,
+        dlqRoutingKey: spec.deadRoutingKey,
+        maxAttempts: config.maxAttempts,
+        prefetch: config.prefetch,
+      },
+      (event) =>
+        handleTranscodeRequested(event as TranscodeRequested, {
+          publisher,
+          presignGet: (key) => rawStorage.presignGetObject(key),
+          putObject: (key, body) => hlsStorage.putObject(key, body),
+          transcode: (options) => transcodeChunk({ ...options, ffmpegPath: config.ffmpegPath }),
+        }),
+    );
+
+    console.log("transcoder listening on", QUEUES.transcode);
+  };
+
+  const rabbitHandle = await connectWithRetry({
+    url: config.rabbitmqUrl,
+    onReady,
+    onReconnecting: (attempt, delayMs, error) =>
+      console.error(`transcoder: rabbitmq connect attempt ${attempt} failed, retrying in ${delayMs}ms`, error),
+  });
 
   let shuttingDown = false;
   const shutdown = async (signal: string) => {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log(`transcoder received ${signal}, finishing in-flight jobs before exit`);
-    await consumer.stop();
-    await rabbit.close();
+    await currentConsumer?.stop();
+    await rabbitHandle.close();
     await prisma.$disconnect();
     process.exit(0);
   };

@@ -14,3 +14,4 @@ coverage/
 tfplan
 .pnpm-store/
 *.tsbuildinfo
+load-tests/results/
