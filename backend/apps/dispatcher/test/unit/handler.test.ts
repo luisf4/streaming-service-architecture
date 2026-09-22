@@ -31,6 +31,9 @@ describe("handleVideoValidated", () => {
     prisma.transcodeJob.create
       .mockResolvedValueOnce({ chunkId: "chunk-0", resolution: "360p" } as never)
       .mockResolvedValueOnce({ chunkId: "chunk-1", resolution: "360p" } as never);
+    prisma.$transaction.mockImplementation((fn: unknown) =>
+      (fn as (tx: PrismaClient) => Promise<unknown>)(prisma),
+    );
 
     const event = validatedEvent(4);
     const publish = vi.fn();
@@ -49,6 +52,10 @@ describe("handleVideoValidated", () => {
     expect(presignGet).toHaveBeenCalledWith(event.data.storageKey);
     expect(getKeyframes).toHaveBeenCalledWith("https://example.test/presigned");
     expect(prisma.chunk.create).toHaveBeenCalledTimes(2);
+    expect(prisma.video.update).toHaveBeenCalledWith({
+      where: { id: event.data.videoId },
+      data: { status: "PROCESSING" },
+    });
 
     expect(publish).toHaveBeenCalledTimes(2);
     const [exchange, routingKey, firstJob] = publish.mock.calls[0];

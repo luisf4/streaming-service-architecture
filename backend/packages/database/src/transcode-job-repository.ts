@@ -36,4 +36,13 @@ export class TranscodeJobRepository {
   async countByVideoId(db: DbClient, videoId: string): Promise<number> {
     return db.transcodeJob.count({ where: { videoId } });
   }
+
+  async distinctResolutions(db: DbClient, videoId: string): Promise<string[]> {
+    const rows = await db.transcodeJob.findMany({
+      where: { videoId },
+      distinct: ["resolution"],
+      select: { resolution: true },
+    });
+    return rows.map((row) => row.resolution);
+  }
 }

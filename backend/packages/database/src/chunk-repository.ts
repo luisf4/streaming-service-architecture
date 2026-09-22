@@ -21,4 +21,8 @@ export class ChunkRepository {
   async findByVideoId(db: DbClient, videoId: string): Promise<Chunk[]> {
     return db.chunk.findMany({ where: { videoId }, orderBy: { sequence: "asc" } });
   }
+
+  async countByVideoId(db: DbClient, videoId: string): Promise<number> {
+    return db.chunk.count({ where: { videoId } });
+  }
 }

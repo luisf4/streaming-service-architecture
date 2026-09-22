@@ -44,4 +44,12 @@ describe("ChunkRepository", () => {
       orderBy: { sequence: "asc" },
     });
   });
+
+  it("counts chunks for a video", async () => {
+    const videoId = randomUUID();
+
+    await repository.countByVideoId(prisma, videoId);
+
+    expect(prisma.chunk.count).toHaveBeenCalledWith({ where: { videoId } });
+  });
 });

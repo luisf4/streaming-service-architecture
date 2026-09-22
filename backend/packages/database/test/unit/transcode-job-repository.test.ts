@@ -57,4 +57,21 @@ describe("TranscodeJobRepository", () => {
 
     expect(prisma.transcodeJob.count).toHaveBeenCalledWith({ where: { videoId } });
   });
+
+  it("lists the distinct resolutions requested for a video", async () => {
+    const videoId = randomUUID();
+    prisma.transcodeJob.findMany.mockResolvedValue([
+      { resolution: "360p" },
+      { resolution: "720p" },
+    ] as never);
+
+    const resolutions = await repository.distinctResolutions(prisma, videoId);
+
+    expect(prisma.transcodeJob.findMany).toHaveBeenCalledWith({
+      where: { videoId },
+      distinct: ["resolution"],
+      select: { resolution: true },
+    });
+    expect(resolutions).toEqual(["360p", "720p"]);
+  });
 });
