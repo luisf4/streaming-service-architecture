@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
-import type { PrismaClient } from "@video-streaming/database";
+import type { PrismaClient, Video } from "@video-streaming/database";
 import { OutboxRepository, VideoRepository } from "@video-streaming/database";
 import { EXCHANGES, ROUTING_KEYS, type VideoUploaded } from "@video-streaming/contracts";
 import { StorageClient } from "@video-streaming/storage";
@@ -49,7 +49,7 @@ export class VideosService {
     return { url };
   }
 
-  async completeUpload(videoId: string, dto: CompleteUploadDto) {
+  async completeUpload(videoId: string, dto: CompleteUploadDto): Promise<Video> {
     const video = await this.videos.findById(this.prisma, videoId);
     if (!video) {
       throw new NotFoundException(`Video ${videoId} not found`);
@@ -87,7 +87,7 @@ export class VideosService {
     });
   }
 
-  async getVideo(videoId: string) {
+  async getVideo(videoId: string): Promise<Video> {
     const video = await this.videos.findById(this.prisma, videoId);
     if (!video) {
       throw new NotFoundException(`Video ${videoId} not found`);

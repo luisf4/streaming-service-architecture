@@ -13,8 +13,11 @@
       "dependsOn": ["^build"]
     },
     "test": {
+      "dependsOn": ["^build"]
+    },
+    "test:integration": {
       "dependsOn": ["^build"],
-      "outputs": ["coverage/**"]
+      "cache": false
     },
     "typecheck": {
       "dependsOn": ["^build"]

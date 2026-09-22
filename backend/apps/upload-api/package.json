@@ -7,7 +7,7 @@
     "start": "node dist/main.js",
     "start:dev": "nest start --watch",
     "test": "vitest run test/unit",
-    "test:integration": "vitest run test/integration",
+    "test:integration": "vitest run test/integration --passWithNoTests",
     "test:all": "vitest run",
     "test:watch": "vitest",
     "lint": "eslint src",
@@ -32,8 +32,11 @@
     "@nestjs/testing": "^10.4.15",
     "@types/supertest": "^6.0.2",
     "@video-streaming/config": "workspace:*",
+    "@swc/core": "^1.9.3",
     "supertest": "^7.0.0",
     "typescript": "^5.7.0",
-    "vitest": "^2.1.8"
+    "unplugin-swc": "^1.5.1",
+    "vitest": "^2.1.8",
+    "vitest-mock-extended": "^2.0.2"
   }
 }

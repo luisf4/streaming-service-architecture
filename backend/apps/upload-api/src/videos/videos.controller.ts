@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Post } from "@nestjs/common";
+import type { Video } from "@video-streaming/database";
 import { CompleteUploadDto } from "./dto/complete-upload.dto";
 import { CreateVideoDto } from "./dto/create-video.dto";
 import { VideosService } from "./videos.service";
@@ -22,12 +23,12 @@ export class VideosController {
   }
 
   @Post(":id/complete")
-  completeUpload(@Param("id") id: string, @Body() dto: CompleteUploadDto) {
+  completeUpload(@Param("id") id: string, @Body() dto: CompleteUploadDto): Promise<Video> {
     return this.videosService.completeUpload(id, dto);
   }
 
   @Get(":id")
-  getVideo(@Param("id") id: string) {
+  getVideo(@Param("id") id: string): Promise<Video> {
     return this.videosService.getVideo(id);
   }
 }
