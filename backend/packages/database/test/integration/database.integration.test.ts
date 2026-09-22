@@ -34,13 +34,13 @@ describe.skipIf(!dockerAvailable)("database integration (Testcontainers Postgres
   });
 
   it("round-trips a video through the repository", async () => {
-    const repository = new VideoRepository(prisma);
-    const video = await repository.create({ title: "Integration video" });
+    const repository = new VideoRepository();
+    const video = await repository.create(prisma, { title: "Integration video" });
 
-    const found = await repository.findById(video.id);
+    const found = await repository.findById(prisma, video.id);
     expect(found?.status).toBe("UPLOADING");
 
-    const updated = await repository.updateStatus(video.id, "READY", {
+    const updated = await repository.updateStatus(prisma, video.id, "READY", {
       manifestKey: "hls/x/master.m3u8",
     });
     expect(updated.status).toBe("READY");

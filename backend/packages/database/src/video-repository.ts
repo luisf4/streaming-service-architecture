@@ -1,4 +1,5 @@
-import type { PrismaClient, VideoStatus } from "@prisma/client";
+import type { VideoStatus } from "@prisma/client";
+import type { DbClient } from "./outbox";
 
 export interface CreateVideoInput {
   title: string;
@@ -12,17 +13,15 @@ export interface UpdateVideoStatusExtra {
 }
 
 export class VideoRepository {
-  constructor(private readonly prisma: PrismaClient) {}
-
-  async create(input: CreateVideoInput) {
-    return this.prisma.video.create({ data: input });
+  async create(db: DbClient, input: CreateVideoInput) {
+    return db.video.create({ data: input });
   }
 
-  async findById(id: string) {
-    return this.prisma.video.findUnique({ where: { id } });
+  async findById(db: DbClient, id: string) {
+    return db.video.findUnique({ where: { id } });
   }
 
-  async updateStatus(id: string, status: VideoStatus, extra: UpdateVideoStatusExtra = {}) {
-    return this.prisma.video.update({ where: { id }, data: { status, ...extra } });
+  async updateStatus(db: DbClient, id: string, status: VideoStatus, extra: UpdateVideoStatusExtra = {}) {
+    return db.video.update({ where: { id }, data: { status, ...extra } });
   }
 }

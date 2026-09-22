@@ -11,11 +11,11 @@ describe("VideoRepository", () => {
   beforeEach(() => {
     prisma = mockDeep<PrismaClient>();
     mockReset(prisma);
-    repository = new VideoRepository(prisma);
+    repository = new VideoRepository();
   });
 
   it("creates a video with the given title and description", async () => {
-    await repository.create({ title: "My video", description: "desc" });
+    await repository.create(prisma, { title: "My video", description: "desc" });
 
     expect(prisma.video.create).toHaveBeenCalledWith({
       data: { title: "My video", description: "desc" },
@@ -25,7 +25,7 @@ describe("VideoRepository", () => {
   it("finds a video by id", async () => {
     const id = randomUUID();
 
-    await repository.findById(id);
+    await repository.findById(prisma, id);
 
     expect(prisma.video.findUnique).toHaveBeenCalledWith({ where: { id } });
   });
@@ -33,7 +33,7 @@ describe("VideoRepository", () => {
   it("updates status plus any extra fields", async () => {
     const id = randomUUID();
 
-    await repository.updateStatus(id, "READY", { manifestKey: "hls/x/master.m3u8" });
+    await repository.updateStatus(prisma, id, "READY", { manifestKey: "hls/x/master.m3u8" });
 
     expect(prisma.video.update).toHaveBeenCalledWith({
       where: { id },
