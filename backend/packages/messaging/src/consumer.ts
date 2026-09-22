@@ -2,7 +2,7 @@ import type { Channel, ConsumeMessage } from "amqplib";
 import type { IdempotencyStore } from "./idempotency";
 import { decideRetry, FAILURE_REASON_HEADER, nextAttemptHeaders } from "./retry";
 
-export type ConsumerChannel = Pick<Channel, "consume" | "ack" | "nack" | "publish" | "prefetch">;
+export type ConsumerChannel = Pick<Channel, "consume" | "cancel" | "ack" | "nack" | "publish" | "prefetch">;
 
 export interface ConsumerOptions {
   queue: string;
@@ -17,6 +17,9 @@ export interface ConsumerOptions {
 export type EventHandler = (event: unknown, msg: ConsumeMessage) => Promise<void>;
 
 export class EventConsumer {
+  private consumerTag?: string;
+  private readonly inFlight = new Set<Promise<void>>();
+
   constructor(
     private readonly channel: ConsumerChannel,
     private readonly idempotency: IdempotencyStore,
@@ -26,10 +29,26 @@ export class EventConsumer {
     if (options.prefetch) {
       await this.channel.prefetch(options.prefetch);
     }
-    await this.channel.consume(options.queue, (msg) => {
+    const reply = await this.channel.consume(options.queue, (msg) => {
       if (!msg) return;
-      void this.handleMessage(msg, options, handler);
+      const task = this.handleMessage(msg, options, handler).finally(() => {
+        this.inFlight.delete(task);
+      });
+      this.inFlight.add(task);
     });
+    this.consumerTag = reply.consumerTag;
+  }
+
+  /**
+   * Stops accepting new deliveries and waits for every in-flight handler to
+   * finish before resolving - so a worker can be killed without abandoning
+   * a job partway through.
+   */
+  async stop(): Promise<void> {
+    if (this.consumerTag) {
+      await this.channel.cancel(this.consumerTag);
+    }
+    await Promise.allSettled([...this.inFlight]);
   }
 
   async handleMessage(msg: ConsumeMessage, options: ConsumerOptions, handler: EventHandler): Promise<void> {

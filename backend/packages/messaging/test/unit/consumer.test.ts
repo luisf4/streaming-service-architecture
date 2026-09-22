@@ -31,7 +31,8 @@ function options(overrides: Partial<ConsumerOptions> = {}): ConsumerOptions {
 
 function fakeChannel() {
   return {
-    consume: vi.fn(),
+    consume: vi.fn().mockResolvedValue({ consumerTag: "tag-1" }),
+    cancel: vi.fn().mockResolvedValue(undefined),
     ack: vi.fn(),
     nack: vi.fn(),
     publish: vi.fn().mockReturnValue(true),
@@ -112,5 +113,52 @@ describe("EventConsumer.handleMessage", () => {
     await consumer.handleMessage(msg, options(), handler);
 
     expect(await idempotency.hasProcessed("evt-1")).toBe(false);
+  });
+});
+
+describe("EventConsumer graceful shutdown", () => {
+  it("stop() cancels the consumer tag and waits for in-flight handlers to finish", async () => {
+    const channel = fakeChannel();
+    let deliverMessage!: (msg: ConsumeMessage) => void;
+    channel.consume.mockImplementation(async (_queue: string, onMessage: (msg: ConsumeMessage) => void) => {
+      deliverMessage = onMessage;
+      return { consumerTag: "tag-1" };
+    });
+
+    const consumer = new EventConsumer(channel, new InMemoryIdempotencyStore());
+    let resolveHandler!: () => void;
+    const handler = vi.fn().mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveHandler = resolve;
+      }),
+    );
+
+    await consumer.start(options(), handler);
+    deliverMessage(fakeMessage({ eventId: "evt-1" }));
+
+    let stopped = false;
+    const stopPromise = consumer.stop().then(() => {
+      stopped = true;
+    });
+
+    expect(channel.cancel).toHaveBeenCalledWith("tag-1");
+    // the in-flight handler hasn't resolved yet, so stop() must still be pending
+    await Promise.resolve();
+    expect(stopped).toBe(false);
+
+    resolveHandler();
+    await stopPromise;
+    expect(stopped).toBe(true);
+    expect(channel.ack).toHaveBeenCalled();
+  });
+
+  it("stop() resolves immediately when there is nothing in flight", async () => {
+    const channel = fakeChannel();
+    const consumer = new EventConsumer(channel, new InMemoryIdempotencyStore());
+
+    await consumer.start(options(), vi.fn());
+    await consumer.stop();
+
+    expect(channel.cancel).toHaveBeenCalledWith("tag-1");
   });
 });
