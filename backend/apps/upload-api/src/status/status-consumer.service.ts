@@ -3,8 +3,9 @@ import { ConfigService } from "@nestjs/config";
 import { PrismaIdempotencyStore, VideoRepository, type PrismaClient } from "@video-streaming/database";
 import { QUEUES } from "@video-streaming/contracts";
 import { EventConsumer, getRetrySpec, type ConsumerChannel } from "@video-streaming/messaging";
+import type { MetricsRegistry } from "@video-streaming/observability";
 import type { AppConfig } from "../config/configuration";
-import { PRISMA_CLIENT, RABBIT_CHANNEL } from "../tokens";
+import { METRICS_REGISTRY, PRISMA_CLIENT, RABBIT_CHANNEL } from "../tokens";
 
 interface StatusEvent {
   eventType: string;
@@ -19,12 +20,16 @@ export class StatusConsumerService implements OnModuleInit {
   constructor(
     @Inject(PRISMA_CLIENT) private readonly prisma: PrismaClient,
     @Inject(RABBIT_CHANNEL) private readonly channel: ConsumerChannel,
+    @Inject(METRICS_REGISTRY) private readonly metrics: MetricsRegistry,
     private readonly config: ConfigService<AppConfig, true>,
   ) {}
 
   async onModuleInit(): Promise<void> {
     const idempotency = new PrismaIdempotencyStore(this.prisma, "upload-api.status");
-    const consumer = new EventConsumer(this.channel, idempotency);
+    const consumer = new EventConsumer(this.channel, idempotency, {
+      serviceName: "upload-api.status",
+      metrics: this.metrics,
+    });
     const spec = getRetrySpec(QUEUES.uploadApiStatus);
     await consumer.start(
       {

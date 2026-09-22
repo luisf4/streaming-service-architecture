@@ -1,4 +1,11 @@
 import "reflect-metadata";
+import { initTracing } from "@video-streaming/observability";
+
+initTracing({
+  serviceName: "stream-api",
+  otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "http://localhost:4318/v1/traces",
+});
+
 import { ValidationPipe } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { NestFactory } from "@nestjs/core";

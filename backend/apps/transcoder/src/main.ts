@@ -1,25 +1,45 @@
 import { QUEUES } from "@video-streaming/contracts";
 import { createPrismaClient, PrismaIdempotencyStore } from "@video-streaming/database";
-import { assertTopology, connectRabbitMQ, EventConsumer, EventPublisher, getRetrySpec } from "@video-streaming/messaging";
+import {
+  assertTopology,
+  connectRabbitMQ,
+  EventConsumer,
+  EventPublisher,
+  getRetrySpec,
+  startQueueDepthPoller,
+} from "@video-streaming/messaging";
+import { initTracing, MetricsRegistry, startMetricsServer } from "@video-streaming/observability";
 import { createS3Client, StorageClient } from "@video-streaming/storage";
 import type { TranscodeRequested } from "@video-streaming/contracts";
 import { loadConfig } from "./config";
 import { handleTranscodeRequested } from "./handler";
 import { transcodeChunk } from "./transcode";
 
+const SERVICE_NAME = "transcoder";
+
 async function main(): Promise<void> {
   const config = loadConfig();
+  initTracing({ serviceName: SERVICE_NAME, otlpEndpoint: config.otlpEndpoint });
+
+  const metrics = new MetricsRegistry();
+  await startMetricsServer(metrics, config.metricsPort);
 
   const prisma = createPrismaClient({ datasources: { db: { url: config.databaseUrl } } });
   const rabbit = await connectRabbitMQ(config.rabbitmqUrl);
   await assertTopology(rabbit.channel);
+  startQueueDepthPoller(
+    rabbit.channel,
+    [QUEUES.transcode, QUEUES.transcodeRetry, QUEUES.transcodeDlq],
+    (queue, depth) => metrics.setQueueDepth(queue, depth),
+    config.queueDepthPollMs,
+  );
 
   const s3 = createS3Client(config.storage);
   const rawStorage = new StorageClient(s3, config.storage.rawBucket);
   const hlsStorage = new StorageClient(s3, config.storage.hlsBucket);
   const publisher = new EventPublisher(rabbit.channel);
   const idempotency = new PrismaIdempotencyStore(prisma, "transcoder");
-  const consumer = new EventConsumer(rabbit.channel, idempotency);
+  const consumer = new EventConsumer(rabbit.channel, idempotency, { serviceName: SERVICE_NAME, metrics });
   const spec = getRetrySpec(QUEUES.transcode);
 
   await consumer.start(

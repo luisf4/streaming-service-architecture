@@ -3,11 +3,20 @@ import { ConfigModule, ConfigService } from "@nestjs/config";
 import { createPrismaClient, type PrismaClient } from "@video-streaming/database";
 import { createS3Client, StorageClient } from "@video-streaming/storage";
 import { EventPublisher, type ConsumerChannel, type PublishChannel } from "@video-streaming/messaging";
+import { MetricsRegistry } from "@video-streaming/observability";
 import configuration, { type AppConfig } from "./config/configuration";
+import { MetricsController } from "./metrics/metrics.controller";
 import { OutboxRelayService } from "./outbox/outbox-relay.service";
 import { RabbitProvider } from "./rabbit/rabbit.provider";
 import { StatusConsumerService } from "./status/status-consumer.service";
-import { EVENT_PUBLISHER, PRISMA_CLIENT, RABBIT_CHANNEL, RAW_BUCKET, STORAGE_CLIENT } from "./tokens";
+import {
+  EVENT_PUBLISHER,
+  METRICS_REGISTRY,
+  PRISMA_CLIENT,
+  RABBIT_CHANNEL,
+  RAW_BUCKET,
+  STORAGE_CLIENT,
+} from "./tokens";
 import { VideosController } from "./videos/videos.controller";
 import { VideosService } from "./videos/videos.service";
 
@@ -18,12 +27,16 @@ import { VideosService } from "./videos/videos.service";
       load: [configuration],
     }),
   ],
-  controllers: [VideosController],
+  controllers: [VideosController, MetricsController],
   providers: [
     RabbitProvider,
     VideosService,
     OutboxRelayService,
     StatusConsumerService,
+    {
+      provide: METRICS_REGISTRY,
+      useValue: new MetricsRegistry(),
+    },
     {
       provide: PRISMA_CLIENT,
       useFactory: (config: ConfigService<AppConfig, true>): PrismaClient =>

@@ -22,6 +22,7 @@
     "@video-streaming/contracts": "workspace:*",
     "@video-streaming/database": "workspace:*",
     "@video-streaming/messaging": "workspace:*",
+    "@video-streaming/observability": "workspace:*",
     "@video-streaming/storage": "workspace:*",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",

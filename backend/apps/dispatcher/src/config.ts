@@ -3,6 +3,9 @@ export interface DispatcherConfig {
   databaseUrl: string;
   maxAttempts: number;
   ffprobePath: string;
+  otlpEndpoint: string;
+  metricsPort: number;
+  queueDepthPollMs: number;
   storage: {
     endpoint?: string;
     region: string;
@@ -18,6 +21,9 @@ export function loadConfig(): DispatcherConfig {
     databaseUrl: process.env.DATABASE_URL ?? "",
     maxAttempts: Number(process.env.DISPATCHER_MAX_ATTEMPTS ?? 3),
     ffprobePath: process.env.FFPROBE_PATH ?? "ffprobe",
+    otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? "http://localhost:4318/v1/traces",
+    metricsPort: Number(process.env.METRICS_PORT ?? 9090),
+    queueDepthPollMs: Number(process.env.QUEUE_DEPTH_POLL_MS ?? 10_000),
     storage: {
       endpoint: process.env.S3_ENDPOINT,
       region: process.env.S3_REGION ?? "us-east-1",

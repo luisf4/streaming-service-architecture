@@ -1,0 +1,26 @@
+# syntax=docker/dockerfile:1
+# frontend/web only. Build with:
+#   docker build -f infra/docker/Dockerfile.web -t streaming/web .
+
+FROM node:20-slim AS base
+RUN corepack enable
+
+FROM base AS pruner
+WORKDIR /app
+COPY . .
+RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm exec turbo prune @video-streaming/web --docker
+
+FROM base AS installer
+WORKDIR /app
+COPY --from=pruner /app/out/json/ .
+RUN pnpm install --frozen-lockfile
+COPY --from=pruner /app/out/full/ .
+RUN pnpm exec turbo run build --filter=@video-streaming/web
+
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=installer /app .
+WORKDIR /app/frontend/web
+CMD ["pnpm", "start"]

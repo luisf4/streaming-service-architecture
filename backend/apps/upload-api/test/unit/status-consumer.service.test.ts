@@ -11,8 +11,8 @@ describe("StatusConsumerService.handleEvent", () => {
   beforeEach(() => {
     prisma = mockDeep<PrismaClient>();
     mockReset(prisma);
-    // channel and config are unused by handleEvent directly; casts keep the constructor happy.
-    service = new StatusConsumerService(prisma, {} as never, {} as never);
+    // channel, metrics and config are unused by handleEvent directly; casts keep the constructor happy.
+    service = new StatusConsumerService(prisma, {} as never, {} as never, {} as never);
   });
 
   it("marks the video READY with the manifest key on video.ready", async () => {
