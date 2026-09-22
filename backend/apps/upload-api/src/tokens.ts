@@ -1,0 +1,4 @@
+export const PRISMA_CLIENT = "PRISMA_CLIENT";
+export const STORAGE_CLIENT = "STORAGE_CLIENT";
+export const RAW_BUCKET = "RAW_BUCKET";
+export const RABBIT_CONNECTION = "RABBIT_CONNECTION";

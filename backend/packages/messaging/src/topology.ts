@@ -1,8 +1,10 @@
 import type { Channel } from "amqplib";
-import { BINDINGS, EXCHANGES, QUEUES } from "@video-streaming/contracts";
+import { BINDINGS, EXCHANGES, QUEUES, ROUTING_KEYS } from "@video-streaming/contracts";
 
 export const TRANSCODE_RETRY_ROUTING_KEY = "transcode.retry";
 export const TRANSCODE_DEAD_ROUTING_KEY = "transcode.dead";
+export const STATUS_RETRY_ROUTING_KEY = "video.status.retry";
+export const STATUS_DEAD_ROUTING_KEY = "video.status.dead";
 
 export interface TopologyOptions {
   retryTtlMs?: number;
@@ -24,11 +26,27 @@ export async function assertTopology(channel: Channel, options: TopologyOptions 
     arguments: {
       "x-message-ttl": retryTtlMs,
       "x-dead-letter-exchange": EXCHANGES.transcodeJobs,
-      "x-dead-letter-routing-key": "transcode.requested",
+      "x-dead-letter-routing-key": ROUTING_KEYS.transcodeRequested,
     },
   });
   await channel.bindQueue(QUEUES.transcodeRetry, EXCHANGES.transcodeJobs, TRANSCODE_RETRY_ROUTING_KEY);
 
   await channel.assertQueue(QUEUES.transcodeDlq, { durable: true });
   await channel.bindQueue(QUEUES.transcodeDlq, EXCHANGES.transcodeJobs, TRANSCODE_DEAD_ROUTING_KEY);
+
+  // upload-api.status.q is fed by several routing keys (video.ready, video.*.failed);
+  // any of them is fine as the dead-letter target since the consumer dispatches on the
+  // event's own `eventType` field, not on the AMQP routing key.
+  await channel.assertQueue(QUEUES.uploadApiStatusRetry, {
+    durable: true,
+    arguments: {
+      "x-message-ttl": retryTtlMs,
+      "x-dead-letter-exchange": EXCHANGES.videoEvents,
+      "x-dead-letter-routing-key": ROUTING_KEYS.videoReady,
+    },
+  });
+  await channel.bindQueue(QUEUES.uploadApiStatusRetry, EXCHANGES.videoEvents, STATUS_RETRY_ROUTING_KEY);
+
+  await channel.assertQueue(QUEUES.uploadApiStatusDlq, { durable: true });
+  await channel.bindQueue(QUEUES.uploadApiStatusDlq, EXCHANGES.videoEvents, STATUS_DEAD_ROUTING_KEY);
 }

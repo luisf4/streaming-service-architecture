@@ -27,15 +27,17 @@ enum TranscodeJobStatus {
 }
 
 model Video {
-  id            String      @id @default(uuid()) @db.Uuid
-  title         String
-  description   String?
-  status        VideoStatus @default(UPLOADING)
-  durationSec   Int?        @map("duration_sec")
-  manifestKey   String?     @map("manifest_key")
-  failureReason String?     @map("failure_reason")
-  createdAt     DateTime    @default(now()) @map("created_at")
-  updatedAt     DateTime    @updatedAt @map("updated_at")
+  id               String      @id @default(uuid()) @db.Uuid
+  title            String
+  description      String?
+  status           VideoStatus @default(UPLOADING)
+  originalFilename String?     @map("original_filename")
+  sizeBytes        BigInt?     @map("size_bytes")
+  durationSec      Int?        @map("duration_sec")
+  manifestKey      String?     @map("manifest_key")
+  failureReason    String?     @map("failure_reason")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
 
   chunks        Chunk[]
   renditions    Rendition[]

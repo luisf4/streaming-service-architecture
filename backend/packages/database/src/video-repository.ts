@@ -4,6 +4,8 @@ import type { DbClient } from "./outbox";
 export interface CreateVideoInput {
   title: string;
   description?: string;
+  originalFilename?: string;
+  sizeBytes?: number;
 }
 
 export interface UpdateVideoStatusExtra {
@@ -14,7 +16,12 @@ export interface UpdateVideoStatusExtra {
 
 export class VideoRepository {
   async create(db: DbClient, input: CreateVideoInput) {
-    return db.video.create({ data: input });
+    return db.video.create({
+      data: {
+        ...input,
+        sizeBytes: input.sizeBytes !== undefined ? BigInt(input.sizeBytes) : undefined,
+      },
+    });
   }
 
   async findById(db: DbClient, id: string) {

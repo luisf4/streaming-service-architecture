@@ -18,6 +18,8 @@ export const QUEUES = {
   dispatcher: "dispatcher.q",
   aggregator: "aggregator.q",
   uploadApiStatus: "upload-api.status.q",
+  uploadApiStatusRetry: "upload-api.status.retry.q",
+  uploadApiStatusDlq: "upload-api.status.dlq",
   transcode: "transcode.q",
   transcodeRetry: "transcode.retry.q",
   transcodeDlq: "transcode.dlq",

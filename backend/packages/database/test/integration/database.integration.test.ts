@@ -19,7 +19,7 @@ describe.skipIf(!dockerAvailable)("database integration (Testcontainers Postgres
     container = await new PostgreSqlContainer("postgres:16-alpine").start();
     const databaseUrl = container.getConnectionUri();
 
-    execSync("npx prisma db push --skip-generate --accept-data-loss", {
+    execSync("npx prisma migrate deploy", {
       cwd: path.resolve(__dirname, "../.."),
       env: { ...process.env, DATABASE_URL: databaseUrl },
       stdio: "inherit",
