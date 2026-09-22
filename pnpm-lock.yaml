@@ -52,6 +52,37 @@ importers:
         specifier: ^2.0.2
         version: 2.0.2(typescript@5.9.3)(vitest@2.1.9(@types/node@22.20.4)(terser@5.51.2))
 
+  backend/apps/transcoder:
+    dependencies:
+      '@video-streaming/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@video-streaming/database':
+        specifier: workspace:*
+        version: link:../../packages/database
+      '@video-streaming/messaging':
+        specifier: workspace:*
+        version: link:../../packages/messaging
+      '@video-streaming/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.0
+        version: 22.20.4
+      '@video-streaming/config':
+        specifier: workspace:*
+        version: link:../../../packages/config
+      typescript:
+        specifier: ^5.7.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.4)(terser@5.51.2)
+      vitest-mock-extended:
+        specifier: ^2.0.2
+        version: 2.0.2(typescript@5.9.3)(vitest@2.1.9(@types/node@22.20.4)(terser@5.51.2))
+
   backend/apps/upload-api:
     dependencies:
       '@nestjs/common':
