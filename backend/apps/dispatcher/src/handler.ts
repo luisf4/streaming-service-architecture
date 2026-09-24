@@ -12,7 +12,7 @@ import { planChunks } from "./chunk-plan";
 import { persistChunksAndJobs } from "./persist-chunks";
 
 export const TARGET_CHUNK_SEC = 6;
-export const RESOLUTIONS: Resolution[] = ["360p", "720p"];
+export const RESOLUTIONS: Resolution[] = ["360p", "720p", "1080p"];
 
 export interface HandlerDeps {
   db: PrismaClient;
