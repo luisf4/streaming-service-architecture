@@ -1,8 +1,11 @@
 /**
  * Types for upload-api and stream-api's HTTP surface, sourced from each
  * service's real OpenAPI document (`@nestjs/swagger`) via
- * `openapi-typescript` - see `generate:api-types`. Never edit
- * `./generated/*` by hand; it's regenerated on every `build`/`typecheck`.
+ * `openapi-typescript` - see `generate:api-types`. `./generated/*` is
+ * committed (needs the backend built to regenerate, which the frontend's
+ * own Docker image - pruned to just this package - can't do), so it's
+ * regenerated and re-committed by hand after a backend DTO change; CI
+ * fails the build if it's ever out of sync.
  */
 
 import type { components as UploadApi } from "./generated/upload-api";

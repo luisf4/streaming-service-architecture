@@ -26,6 +26,12 @@ jobs:
       - name: Lint
         run: pnpm run lint
 
+      - name: Verify generated API client is up to date
+        run: |
+          pnpm --filter @video-streaming/web run generate:api-types
+          git diff --exit-code -- frontend/web/src/lib/generated || \
+            (echo "::error::frontend/web/src/lib/generated is stale - run 'pnpm --filter @video-streaming/web run generate:api-types' and commit the result" && exit 1)
+
       - name: Test
         run: pnpm run test
 

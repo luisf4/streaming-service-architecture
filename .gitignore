@@ -16,7 +16,6 @@ tfplan
 *.tsbuildinfo
 load-tests/results/
 docs/openapi/
-frontend/web/src/lib/generated/
 anti-slop/
 skills/
 antislop.md
