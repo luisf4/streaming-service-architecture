@@ -10,39 +10,58 @@ distributed tracing, horizontal scaling), not as a product. See
 ## Architecture
 
 ```mermaid
-flowchart LR
-    subgraph Upload
-        FE[frontend/web] -->|multipart upload| UA[upload-api]
-        UA -->|outbox -> video.uploaded| MQ((RabbitMQ))
-    end
+flowchart TD
+    FE[frontend/web]
+    UA[upload-api]
+    VAL[validator<br/>ffprobe]
+    DIS[dispatcher<br/>keyframe-aligned chunks]
+    TC[transcoder x N replicas<br/>ffmpeg per chunk x resolution]
+    AGG[aggregator<br/>fan-in, playlists]
+    SA[stream-api]
+    CDN[CloudFront / Nginx]
+    DB[(Postgres)]
+    S3[(S3 / MinIO<br/>raw + hls buckets)]
 
-    MQ --> VAL[validator<br/>ffprobe]
-    VAL -->|video.validated| MQ
-    MQ --> DIS[dispatcher<br/>keyframe-aligned chunks]
-    DIS -->|transcode.requested x N| MQ
-    MQ --> TC[transcoder x N replicas<br/>ffmpeg per chunk x resolution]
-    TC -->|chunk.transcoded| MQ
-    MQ --> AGG[aggregator<br/>fan-in, playlists]
-    AGG -->|video.ready| MQ
-    MQ --> UA
-
-    UA -.status polling.-> DB[(Postgres)]
-    VAL -.-> DB
-    DIS -.-> DB
-    TC -.-> S3[(S3 / MinIO<br/>raw + hls buckets)]
-    AGG -.-> S3
-    AGG -.-> DB
-
+    %% synchronous calls, and the browser's own direct-to-storage data plane
+    FE -->|start / presign part / complete| UA
+    FE -->|PUT each part, presigned| S3
     FE -->|SSE status| UA
-    FE -->|GET play| SA[stream-api]
-    SA -->|signed URL| CDN[CloudFront / Nginx]
+    FE -->|GET play, gets back a signed URL| SA
+    FE -->|HLS manifest + segments| CDN
     CDN --> S3
+
+    %% one async event each, over one shared RabbitMQ broker
+    UA -.->|video.uploaded, via outbox| VAL
+    VAL -.->|video.validated| DIS
+    VAL -.->|video.validation.failed| UA
+    DIS -.->|transcode.requested x N| TC
+    TC -.->|chunk.transcoded| AGG
+    AGG -.->|video.ready| UA
+
+    %% storage: who reads/writes what
+    UA ==>|video row: status| DB
+    UA ==>|create / complete multipart upload| S3
+    VAL ==>|read source| S3
+    DIS ==>|read source| S3
+    DIS ==>|Chunk, TranscodeJob rows, status: PROCESSING| DB
+    TC ==>|read source, write segment| S3
+    AGG ==>|Rendition rows| DB
+    AGG ==>|write playlists| S3
+    SA ==>|read video row| DB
 ```
 
-Every arrow into/out of RabbitMQ is one event from
+Solid arrows are synchronous calls - including the browser's own
+presigned `PUT`s straight to S3/MinIO, so upload-api orchestrates the
+multipart upload but never sees the video bytes themselves. Dashed
+arrows are one async event each from
 `backend/packages/contracts/src/events/`, versioned and validated with
-zod. Every consumer gets its own retry queue (TTL + dead-letter) and DLQ -
-see `backend/packages/messaging/src/topology.ts` and ADR 0001.
+zod, routed over a single RabbitMQ broker - every consumer gets its own
+retry queue (TTL + dead-letter) and DLQ, see
+`backend/packages/messaging/src/topology.ts` and ADR 0001. Thick arrows
+are a storage read or write (Postgres or S3/MinIO); `Video.status`
+itself is only ever written by upload-api or dispatcher - never by
+validator, transcoder or aggregator, which only publish the event or
+persist their own rows (Chunk/TranscodeJob, Rendition).
 
 ## Repo layout
 
