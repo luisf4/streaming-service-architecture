@@ -3,7 +3,7 @@ import { PlayerPage } from "@/components/PlayerPage";
 export default async function VideoPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   return (
-    <main className="page__main">
+    <main className="page__main page__main--wide">
       <a href="/" className="page__back">
         ← Upload another video
       </a>

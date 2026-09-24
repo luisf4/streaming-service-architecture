@@ -92,6 +92,11 @@ select {
   padding: var(--space-6) var(--space-4) var(--space-7);
 }
 
+/* The player needs real screen space; the upload form doesn't. */
+.page__main--wide {
+  max-width: none;
+}
+
 .page__title {
   font-size: 1.5rem;
   font-weight: 600;
