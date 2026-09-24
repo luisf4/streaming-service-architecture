@@ -44,6 +44,16 @@ describe("MetricsRegistry", () => {
     expect(text).not.toContain("streaming_job_duration_seconds_count");
   });
 
+  it("observes a video's total time to READY from its creation time", async () => {
+    const metrics = new MetricsRegistry();
+
+    metrics.recordVideoReady(new Date(Date.now() - 90_000));
+
+    const text = await metrics.toPrometheusText();
+    expect(text).toContain("streaming_video_total_duration_seconds_count 1");
+    expect(text).toContain('streaming_video_total_duration_seconds_bucket{le="120"} 1');
+  });
+
   it("exposes the content type prom-client expects on the /metrics response", () => {
     const metrics = new MetricsRegistry();
     expect(metrics.contentType).toContain("text/plain");

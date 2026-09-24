@@ -144,3 +144,10 @@ traces and metrics flowing, needs the stack actually running end to end
 with a real video pushed through it - which this environment couldn't do
 (no Docker). Once `docker compose up` runs somewhere with a display,
 `docs/adrs/` and this README are the place to add them.
+
+The Grafana dashboard itself (`infra/docker/grafana/provisioning/dashboards/`)
+is provisioned and loads automatically with the stack - queue depth,
+jobs/s and DLQ rate by service, job duration (p50/p95), and time-to-READY
+per video (p50/p95, the metric behind the benchmark table above). What's
+missing is a screenshot of it with real traffic flowing, for the same
+no-Docker reason as the rest of this section.

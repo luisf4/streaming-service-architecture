@@ -1,22 +1,26 @@
 import { randomUUID } from "node:crypto";
 import type { PrismaClient } from "@video-streaming/database";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockDeep, mockReset, type DeepMockProxy } from "vitest-mock-extended";
 import { StatusConsumerService } from "../../src/status/status-consumer.service";
 
 describe("StatusConsumerService.handleEvent", () => {
   let prisma: DeepMockProxy<PrismaClient>;
+  let metrics: { recordVideoReady: ReturnType<typeof vi.fn> };
   let service: StatusConsumerService;
 
   beforeEach(() => {
     prisma = mockDeep<PrismaClient>();
     mockReset(prisma);
-    // channel, metrics and config are unused by handleEvent directly; casts keep the constructor happy.
-    service = new StatusConsumerService(prisma, {} as never, {} as never, {} as never);
+    metrics = { recordVideoReady: vi.fn() };
+    // channel and config are unused by handleEvent directly; casts keep the constructor happy.
+    service = new StatusConsumerService(prisma, {} as never, metrics as never, {} as never);
   });
 
   it("marks the video READY with the manifest key on video.ready", async () => {
     const videoId = randomUUID();
+    const createdAt = new Date("2026-01-01T00:00:00Z");
+    prisma.video.update.mockResolvedValue({ createdAt } as never);
 
     await service.handleEvent({
       eventType: "video.ready",
@@ -27,6 +31,19 @@ describe("StatusConsumerService.handleEvent", () => {
       where: { id: videoId },
       data: { status: "READY", manifestKey: "hls/x/master.m3u8" },
     });
+  });
+
+  it("records the video's total time to READY on video.ready", async () => {
+    const videoId = randomUUID();
+    const createdAt = new Date(Date.now() - 42_000);
+    prisma.video.update.mockResolvedValue({ createdAt } as never);
+
+    await service.handleEvent({
+      eventType: "video.ready",
+      data: { videoId, manifestKey: "hls/x/master.m3u8" },
+    });
+
+    expect(metrics.recordVideoReady).toHaveBeenCalledWith(createdAt);
   });
 
   it("marks the video FAILED with the reason on video.validation.failed", async () => {

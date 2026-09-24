@@ -49,11 +49,13 @@ export class StatusConsumerService implements OnModuleInit {
     const videoId = event.data.videoId as string;
 
     switch (event.eventType) {
-      case "video.ready":
-        await this.videos.updateStatus(this.prisma, videoId, "READY", {
+      case "video.ready": {
+        const updated = await this.videos.updateStatus(this.prisma, videoId, "READY", {
           manifestKey: event.data.manifestKey as string,
         });
+        this.metrics.recordVideoReady(updated.createdAt);
         return;
+      }
       case "video.validation.failed":
       case "video.transcode.failed":
         await this.videos.updateStatus(this.prisma, videoId, "FAILED", {

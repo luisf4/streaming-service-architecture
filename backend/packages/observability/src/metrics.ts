@@ -33,11 +33,23 @@ export class MetricsRegistry {
     registers: [this.registry],
   });
 
+  /** Wall-clock time from a video's creation (UPLOADING) to it reaching READY. */
+  readonly videoTotalDurationSeconds = new Histogram({
+    name: "streaming_video_total_duration_seconds",
+    help: "Time from a video being created to its status reaching READY",
+    buckets: [5, 10, 30, 60, 120, 300, 600, 1800, 3600],
+    registers: [this.registry],
+  });
+
   recordJob(service: string, outcome: JobOutcome, durationSeconds?: number): void {
     this.jobsTotal.inc({ service, outcome });
     if (durationSeconds !== undefined) {
       this.jobDurationSeconds.observe({ service }, durationSeconds);
     }
+  }
+
+  recordVideoReady(createdAt: Date): void {
+    this.videoTotalDurationSeconds.observe((Date.now() - createdAt.getTime()) / 1000);
   }
 
   setQueueDepth(queue: string, depth: number): void {
