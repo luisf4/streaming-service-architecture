@@ -1,0 +1,111 @@
+/*
+ * Dark by default: this is a tool for reviewing video (upload progress,
+ * transcode status, HLS playback), and a bright chrome around a video frame
+ * skews how its exposure and color read, same reason video tools (YouTube
+ * Studio, Premiere, DaVinci) default dark. No toggle needed since the
+ * product type, not taste, drives the choice (see R-21 in antislop.md).
+ */
+:root {
+  --bg: #0b0d10;
+  --surface: #15181c;
+  --surface-raised: #1c2025;
+  --border: #2a2f36;
+  --border-strong: #394049;
+  --text: #eef0f2;
+  --text-muted: #a7aeb6;
+  --accent: #f2a541;
+  --accent-ink: #1a1200;
+  --success: #34d399;
+  --error: #f87171;
+
+  --radius: 8px;
+  --radius-sm: 6px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --transition: 150ms ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+/* Shared page shell: both routes are a header plus one narrow column. */
+.page {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+.page__main {
+  flex: 1;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4) var(--space-7);
+}
+
+.page__title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0 0 var(--space-5);
+}
+
+.page__back {
+  display: inline-block;
+  margin-bottom: var(--space-4);
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.page__back:hover {
+  color: var(--accent);
+}

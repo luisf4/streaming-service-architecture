@@ -1,0 +1,21 @@
+.header {
+  border-bottom: 1px solid var(--border);
+}
+
+.inner {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--space-4);
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.brand:hover {
+  color: var(--accent);
+  text-decoration: none;
+}

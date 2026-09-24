@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import { SiteHeader } from "@/components/SiteHeader";
+import "./globals.css";
 
 export const metadata = {
   title: "Video Streaming",
@@ -8,7 +10,12 @@ export const metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <div className="page">
+          <SiteHeader />
+          {children}
+        </div>
+      </body>
     </html>
   );
 }

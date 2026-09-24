@@ -2,6 +2,7 @@
 
 import Hls, { type ErrorData, type Level } from "hls.js";
 import { useEffect, useRef, useState } from "react";
+import styles from "./VideoPlayer.module.css";
 
 export interface VideoPlayerProps {
   manifestUrl: string;
@@ -55,25 +56,33 @@ export function VideoPlayer({ manifestUrl }: VideoPlayerProps) {
 
   return (
     <div>
-      <video ref={videoRef} controls data-testid="video-player" style={{ width: "100%" }} />
-      {error && <p role="alert">{error}</p>}
-      {levels.length > 0 && (
-        <label>
-          Quality
-          <select
-            aria-label="Quality"
-            value={currentLevel}
-            onChange={(event) => selectLevel(Number(event.target.value))}
-            style={{ minHeight: 44, minWidth: 44 }}
-          >
-            <option value={-1}>Auto</option>
-            {levels.map((level, index) => (
-              <option key={index} value={index}>
-                {level.height}p
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className={styles.frame}>
+        <video ref={videoRef} controls data-testid="video-player" className={styles.video} />
+        {levels.length > 0 && (
+          <div className={styles.controls}>
+            <label className={styles.qualityLabel}>
+              Quality
+              <select
+                aria-label="Quality"
+                className={styles.qualitySelect}
+                value={currentLevel}
+                onChange={(event) => selectLevel(Number(event.target.value))}
+              >
+                <option value={-1}>Auto</option>
+                {levels.map((level, index) => (
+                  <option key={index} value={index}>
+                    {level.height}p
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
+      </div>
+      {error && (
+        <p role="alert" className={styles.alert}>
+          {error}
+        </p>
       )}
     </div>
   );

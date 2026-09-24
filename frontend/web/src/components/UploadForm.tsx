@@ -4,7 +4,9 @@ import { useState, type FormEvent } from "react";
 import { getApiConfig } from "@/lib/config";
 import { ApiClient } from "@/lib/api-client";
 import { uploadPartToPresignedUrl, uploadVideo, type UploadProgress } from "@/lib/upload";
+import { formatBytes } from "@/lib/format";
 import { StatusView } from "./StatusView";
+import styles from "./UploadForm.module.css";
 
 export function UploadForm() {
   const [title, setTitle] = useState("");
@@ -44,40 +46,66 @@ export function UploadForm() {
     }
   }
 
+  const percent = progress ? Math.round((progress.uploadedBytes / progress.totalBytes) * 100) : 0;
+
   return (
     <div>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label htmlFor="title">Title</label>
+      <form onSubmit={handleSubmit} className={styles.card}>
+        <div className={styles.field}>
+          <label htmlFor="title" className={styles.label}>
+            Title
+          </label>
           <input
             id="title"
+            className={styles.input}
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             required
-            style={{ minHeight: 44 }}
           />
         </div>
-        <div>
-          <label htmlFor="file">Video file</label>
+        <div className={styles.field}>
+          <label htmlFor="file" className={styles.label}>
+            Video file
+          </label>
           <input
             id="file"
+            className={styles.input}
             type="file"
             accept="video/*"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-            style={{ minHeight: 44 }}
           />
+          {file && (
+            <span className={styles.fileHint}>
+              {file.name} · {formatBytes(file.size)}
+            </span>
+          )}
         </div>
-        <button type="submit" disabled={submitting || !file} style={{ minHeight: 44, minWidth: 44 }}>
+        <button type="submit" disabled={submitting || !file} className={styles.button}>
           {submitting ? "Uploading..." : "Upload"}
         </button>
         {progress && (
-          <progress
-            aria-label="Upload progress"
-            value={progress.uploadedBytes}
-            max={progress.totalBytes}
-          />
+          <div className={styles.progress}>
+            <progress
+              aria-label="Upload progress"
+              className={styles.progressBar}
+              value={progress.uploadedBytes}
+              max={progress.totalBytes}
+            />
+            <div className={styles.progressMeta}>
+              <span>
+                Part {progress.partsDone} of {progress.totalParts}
+              </span>
+              <span>
+                {percent}% · {formatBytes(progress.uploadedBytes)} / {formatBytes(progress.totalBytes)}
+              </span>
+            </div>
+          </div>
         )}
-        {error && <p role="alert">{error}</p>}
+        {error && (
+          <p role="alert" className={styles.alert}>
+            {error}
+          </p>
+        )}
       </form>
       {videoId && <StatusView videoId={videoId} />}
     </div>

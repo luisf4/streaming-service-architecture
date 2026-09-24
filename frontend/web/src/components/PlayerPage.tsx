@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { getApiConfig } from "@/lib/config";
 import { ApiClient } from "@/lib/api-client";
 import { VideoPlayer } from "./VideoPlayer";
+import styles from "./PlayerPage.module.css";
 
 export interface PlayerPageProps {
   videoId: string;
@@ -22,10 +23,14 @@ export function PlayerPage({ videoId }: PlayerPageProps) {
   }, [videoId]);
 
   if (error) {
-    return <p role="alert">{error}</p>;
+    return (
+      <p role="alert" className={styles.alert}>
+        {error}
+      </p>
+    );
   }
   if (!manifestUrl) {
-    return <p>Loading...</p>;
+    return <p className={styles.state}>Loading...</p>;
   }
   return <VideoPlayer manifestUrl={manifestUrl} />;
 }
