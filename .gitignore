@@ -15,3 +15,6 @@ tfplan
 .pnpm-store/
 *.tsbuildinfo
 load-tests/results/
+anti-slop/
+skills/
+antislop.md
