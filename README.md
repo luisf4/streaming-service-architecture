@@ -64,28 +64,45 @@ docs/adrs/    the six ADRs
 
 ## Running it locally
 
+Needs Docker (compose v2) and Node >=20 with pnpm.
+
 ```bash
 pnpm install
 cp .env.example .env   # only needed running an app outside docker-compose
-docker compose -f infra/docker/docker-compose.yml up -d
+docker compose -f infra/docker/docker-compose.yml up -d --build
 ```
 
 That brings up Postgres, RabbitMQ, MinIO, Nginx, Jaeger, Prometheus,
 Grafana, and all 8 application services. Two one-shot containers
 (`migrate`, `minio-init`) run first and exit - Prisma migrations and the
 `raw`/`hls` MinIO buckets aren't there on a first boot otherwise - and
-every app service waits on both before starting. Once it's up:
+every app service waits on both before starting.
 
-| What | Where |
-| --- | --- |
-| Web app | http://localhost:3003 |
-| upload-api (OpenAPI docs at `/docs`) | http://localhost:3001 |
-| stream-api (OpenAPI docs at `/docs`) | http://localhost:3002 |
-| RabbitMQ management | http://localhost:15672 (streaming/streaming) |
-| MinIO console | http://localhost:9001 (streaming/streamingsecret) |
-| Jaeger UI | http://localhost:16686 |
-| Prometheus | http://localhost:9091 |
-| Grafana | http://localhost:3000 (admin/streaming, or anonymous) |
+```bash
+docker compose -f infra/docker/docker-compose.yml ps            # what's up
+docker compose -f infra/docker/docker-compose.yml logs -f web   # tail one service
+docker compose -f infra/docker/docker-compose.yml up -d --build web   # rebuild after editing one service
+docker compose -f infra/docker/docker-compose.yml down          # stop everything (add -v to also drop volumes/data)
+```
+
+Once it's up, here's every port it opens:
+
+| Port | Service | What's there |
+| --- | --- | --- |
+| 3003 | web | The app itself: upload a video, browse `/videos`, watch one |
+| 3001 | upload-api | REST API the web app calls to upload; OpenAPI docs at `/docs` |
+| 3002 | stream-api | REST API the web app calls to play; OpenAPI docs at `/docs` |
+| 8080 | nginx | Proxies presigned upload/playback URLs straight to MinIO - not the app APIs |
+| 3000 | grafana | Dashboards: queue depth, jobs/s and DLQ rate by service, job duration, time-to-READY (admin/streaming, or anonymous) |
+| 16686 | jaeger | Distributed tracing UI, one trace per request across every service |
+| 9091 | prometheus | Raw metrics (Grafana's datasource; rarely opened directly) |
+| 15672 | rabbitmq | Management UI: queues, DLQs, message rates (streaming/streaming) |
+| 9001 | minio | Object storage console: `raw`/`hls` buckets (streaming/streamingsecret) |
+| 5432 | postgres | Database - `psql postgresql://streaming:streaming@localhost:5432/streaming` |
+| 5672 | rabbitmq | AMQP, used by the backend services, not meant to be opened by hand |
+| 9000 | minio | S3 API, used by the backend services, not meant to be opened by hand |
+| 4318 | jaeger | OTLP HTTP, where every service's traces get pushed to |
+| 15692 | rabbitmq | Prometheus metrics endpoint, scraped by `prometheus` |
 
 For everyday development (not full-stack docker), run the monorepo's own
 tasks instead:
