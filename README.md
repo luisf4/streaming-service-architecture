@@ -9,46 +9,10 @@ distributed tracing, horizontal scaling), not as a product. See
 
 ## Architecture
 
-```mermaid
-flowchart TD
-    FE[frontend/web]
-    UA[upload-api]
-    VAL[validator<br/>ffprobe]
-    DIS[dispatcher<br/>keyframe-aligned chunks]
-    TC[transcoder x N replicas<br/>ffmpeg per chunk x resolution]
-    AGG[aggregator<br/>fan-in, playlists]
-    SA[stream-api]
-    CDN[CloudFront / Nginx]
-    DB[(Postgres)]
-    S3[(S3 / MinIO<br/>raw + hls buckets)]
+![Architecture](docs/architecture.svg)
 
-    %% synchronous calls, and the browser's own direct-to-storage data plane
-    FE -->|start / presign part / complete| UA
-    FE -->|PUT each part, presigned| S3
-    FE -->|SSE status| UA
-    FE -->|GET play, gets back a signed URL| SA
-    FE -->|HLS manifest + segments| CDN
-    CDN --> S3
-
-    %% one async event each, over one shared RabbitMQ broker
-    UA -.->|video.uploaded, via outbox| VAL
-    VAL -.->|video.validated| DIS
-    VAL -.->|video.validation.failed| UA
-    DIS -.->|transcode.requested x N| TC
-    TC -.->|chunk.transcoded| AGG
-    AGG -.->|video.ready| UA
-
-    %% storage: who reads/writes what
-    UA ==>|video row: status| DB
-    UA ==>|create / complete multipart upload| S3
-    VAL ==>|read source| S3
-    DIS ==>|read source| S3
-    DIS ==>|Chunk, TranscodeJob rows, status: PROCESSING| DB
-    TC ==>|read source, write segment| S3
-    AGG ==>|Rendition rows| DB
-    AGG ==>|write playlists| S3
-    SA ==>|read video row| DB
-```
+Source: `docs/architecture.d2` - regenerate with
+`d2 --layout=elk --theme=0 docs/architecture.d2 docs/architecture.svg`.
 
 Solid arrows are synchronous calls - including the browser's own
 presigned `PUT`s straight to S3/MinIO, so upload-api orchestrates the
@@ -76,7 +40,7 @@ infra/
   docker/     docker-compose for local dev (Postgres, RabbitMQ, MinIO,
               Nginx, Jaeger, Prometheus, Grafana, and all 8 apps)
   terraform/  AWS (sa-east-1 applied, us-east-1 plan-only)
-  scale/      autoscaler + chaos scripts (Fase 9)
+  scale/      autoscaler + chaos scripts (Phase 9)
 load-tests/   k6 upload scenario
 docs/adrs/    the six ADRs
 ```
@@ -154,7 +118,7 @@ signs the master, so anything past it 403s unless the bucket allows
 anonymous reads. `minio-init` sets `local/hls` to public `download` for
 exactly this reason; the same problem exists in the CloudFront path
 (`CloudFrontManifestUrlSigner` signs one object too) and isn't fixed
-there - Fase 10 needs either a wildcard/custom CloudFront policy or an
+there - Phase 10 needs either a wildcard/custom CloudFront policy or an
 authenticated proxy for HLS sub-resources.
 
 Not run in this environment: `pnpm run test:integration` (Testcontainers

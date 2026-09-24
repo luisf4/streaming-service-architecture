@@ -1,0 +1,138 @@
+# Source for docs/architecture.svg - regenerate with:
+#   d2 --layout=elk --theme=0 docs/architecture.d2 docs/architecture.svg
+
+direction: down
+
+classes: {
+  service: {
+    style: {
+      border-radius: 8
+      font-size: 24
+      bold: true
+    }
+  }
+  stage: {
+    style: {
+      border-radius: 6
+      font-size: 16
+      stroke-dash: 3
+      fill: "#FFFFFF"
+    }
+  }
+  event: {
+    style.stroke-dash: 4
+  }
+  storage: {
+    style.stroke-width: 3
+  }
+}
+
+web: frontend/web - Next.js {
+  class: service
+  style.fill: "#FFF7E8"
+
+  upload_page: "/ - UploadForm\nsplits the file into 8 MiB parts\nupload progress per part"
+  status_view: "StatusView\nEventSource on /videos/:id/events"
+  list_page: "/videos - VideoList"
+  player_page: "/videos/:id - PlayerPage\nhls.js picks a rendition\nby bandwidth"
+}
+
+upload: Upload service {
+  class: service
+  style.fill: "#EEF4FF"
+
+  ingest: 1. Ingest - upload-api {
+    class: stage
+    start: "POST /videos\nVideo row (UPLOADING)\nCreateMultipartUpload"
+    presign: "POST .../parts/:n/presign\npresigned PUT URL per part"
+    complete: "POST /videos/:id/complete\nCompleteMultipartUpload\n1 tx: UPLOADED + outbox row"
+    relay: "outbox relay\npolls unpublished outbox rows\npublishes, marks published"
+
+    start -> presign: uploadId
+    presign -> complete: every part uploaded
+    complete -> relay: outbox row
+  }
+
+  validate: 2. Validate {
+    class: stage
+    validator: "validator\nffprobe: duration + format\ncorrupt file = FAILED, no retry"
+  }
+
+  chunk: 3. Chunk {
+    class: stage
+    dispatcher: "dispatcher\nffprobe keyframes, ~6s chunks\n1 job per chunk x resolution"
+  }
+
+  transcode: 4. Transcode - transcoder x N replicas {
+    class: stage
+    r360: "360p\nffmpeg libx264 + aac\nchunk -> .ts segment"
+    r720: "720p\nffmpeg libx264 + aac\nchunk -> .ts segment"
+    r1080: "1080p\nffmpeg libx264 + aac\nchunk -> .ts segment"
+  }
+
+  package: 5. Package {
+    class: stage
+    aggregator: "aggregator\nfan-in: waits for every chunk\nper-resolution playlist.m3u8\nthen master.m3u8"
+  }
+
+  status: 6. Status - upload-api {
+    class: stage
+    consumer: "status consumer\nvideo.ready -> READY + manifestKey\nvideo.validation.failed -> FAILED + reason"
+    sse: "GET /videos/:id/events (SSE)\npolls Video.status every 1s\ncloses on READY / FAILED"
+    read: "GET /videos, GET /videos/:id\nlist + detail"
+  }
+
+  ingest.relay -> validate.validator: video.uploaded {class: event}
+  validate.validator -> chunk.dispatcher: video.validated {class: event}
+  validate.validator -> status.consumer: video.validation.failed {class: event}
+  chunk.dispatcher -> transcode.r360: transcode.requested {class: event}
+  chunk.dispatcher -> transcode.r720: transcode.requested {class: event}
+  chunk.dispatcher -> transcode.r1080: transcode.requested {class: event}
+  transcode.r360 -> package.aggregator: chunk.transcoded {class: event}
+  transcode.r720 -> package.aggregator: chunk.transcoded {class: event}
+  transcode.r1080 -> package.aggregator: chunk.transcoded {class: event}
+  package.aggregator -> status.consumer: video.ready {class: event}
+}
+
+watch: Watch service {
+  class: service
+  style.fill: "#EEFBF1"
+
+  api: "stream-api\nGET /videos/:id/play\n404 if missing, 409 unless READY\nsigns the master.m3u8 URL\n(MinIO presign local, CloudFront prod)"
+  cdn: "Nginx (local) / CloudFront (prod)\nmaster.m3u8 -> playlist.m3u8\n-> .ts segments"
+}
+
+storage: Storage {
+  class: service
+  style.fill: "#F6F6F6"
+
+  db: "Postgres\nVideo, Outbox, Chunk,\nTranscodeJob, Rendition" {shape: cylinder}
+  raw: "S3 / MinIO - raw bucket\nvideos/:id/original" {shape: cylinder}
+  hls: "S3 / MinIO - hls bucket\nvideos/:id/master.m3u8\n:res/playlist.m3u8\n:res/segment-NNNNN.ts" {shape: cylinder}
+}
+
+# browser: synchronous calls + direct-to-storage upload
+web.upload_page -> upload.ingest.start: 1. start
+web.upload_page -> upload.ingest.presign: 2. presign part N
+web.upload_page -> storage.raw: "3. PUT part N, presigned\nkeeps the ETag"
+web.upload_page -> upload.ingest.complete: 4. complete with ETags
+web.status_view -> upload.status.sse: SSE status
+web.list_page -> upload.status.read: GET /videos
+web.player_page -> watch.api: GET play, gets back a signed URL
+web.player_page -> watch.cdn: HLS manifest + segments
+
+# upload service: storage reads/writes
+upload.ingest -> storage.db: "Video row: UPLOADING -> UPLOADED\noutbox rows" {class: storage}
+upload.ingest -> storage.raw: create / complete multipart upload {class: storage}
+upload.validate.validator -> storage.raw: read source {class: storage}
+upload.chunk.dispatcher -> storage.raw: read keyframes {class: storage}
+upload.chunk.dispatcher -> storage.db: "Chunk, TranscodeJob rows\nstatus: PROCESSING" {class: storage}
+upload.transcode -> storage.raw: read chunk range {class: storage}
+upload.transcode -> storage.hls: write segment {class: storage}
+upload.package.aggregator -> storage.db: Rendition rows {class: storage}
+upload.package.aggregator -> storage.hls: write playlists {class: storage}
+upload.status -> storage.db: "status: READY / FAILED\nreads Video rows" {class: storage}
+
+# watch service: storage reads
+watch.api -> storage.db: read video row {class: storage}
+watch.cdn -> storage.hls: read manifest + segments
