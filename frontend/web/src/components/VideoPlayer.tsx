@@ -1,6 +1,6 @@
 "use client";
 
-import Hls, { type Level } from "hls.js";
+import Hls, { type ErrorData, type Level } from "hls.js";
 import { useEffect, useRef, useState } from "react";
 
 export interface VideoPlayerProps {
@@ -12,16 +12,24 @@ export function VideoPlayer({ manifestUrl }: VideoPlayerProps) {
   const hlsRef = useRef<Hls | null>(null);
   const [levels, setLevels] = useState<Level[]>([]);
   const [currentLevel, setCurrentLevel] = useState(-1);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+
+    setError(null);
 
     if (Hls.isSupported()) {
       const hls = new Hls();
       hlsRef.current = hls;
       hls.on(Hls.Events.MANIFEST_PARSED, (_event, data) => {
         setLevels(data.levels);
+      });
+      hls.on(Hls.Events.ERROR, (_event, data: ErrorData) => {
+        if (data.fatal) {
+          setError(`Playback error: ${data.details}`);
+        }
       });
       hls.loadSource(manifestUrl);
       hls.attachMedia(video);
@@ -48,6 +56,7 @@ export function VideoPlayer({ manifestUrl }: VideoPlayerProps) {
   return (
     <div>
       <video ref={videoRef} controls data-testid="video-player" style={{ width: "100%" }} />
+      {error && <p role="alert">{error}</p>}
       {levels.length > 0 && (
         <label>
           Quality
@@ -55,6 +64,7 @@ export function VideoPlayer({ manifestUrl }: VideoPlayerProps) {
             aria-label="Quality"
             value={currentLevel}
             onChange={(event) => selectLevel(Number(event.target.value))}
+            style={{ minHeight: 44, minWidth: 44 }}
           >
             <option value={-1}>Auto</option>
             {levels.map((level, index) => (

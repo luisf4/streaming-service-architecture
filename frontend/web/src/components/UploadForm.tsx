@@ -21,6 +21,7 @@ export function UploadForm() {
     setSubmitting(true);
     setError(null);
     setProgress(null);
+    setVideoId(null);
 
     try {
       const client = new ApiClient(getApiConfig());
@@ -53,6 +54,7 @@ export function UploadForm() {
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             required
+            style={{ minHeight: 44 }}
           />
         </div>
         <div>
@@ -62,9 +64,10 @@ export function UploadForm() {
             type="file"
             accept="video/*"
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+            style={{ minHeight: 44 }}
           />
         </div>
-        <button type="submit" disabled={submitting || !file}>
+        <button type="submit" disabled={submitting || !file} style={{ minHeight: 44, minWidth: 44 }}>
           {submitting ? "Uploading..." : "Upload"}
         </button>
         {progress && (

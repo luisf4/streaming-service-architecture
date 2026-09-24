@@ -6,7 +6,7 @@ const instances: FakeHls[] = [];
 
 class FakeHls {
   static isSupported = vi.fn().mockReturnValue(true);
-  static Events = { MANIFEST_PARSED: "hlsManifestParsed" };
+  static Events = { MANIFEST_PARSED: "hlsManifestParsed", ERROR: "hlsError" };
 
   handlers: Record<string, (event: string, data: unknown) => void> = {};
   loadSource = vi.fn();
@@ -77,5 +77,27 @@ describe("VideoPlayer", () => {
     await user.selectOptions(select, "1");
 
     expect(instance.currentLevel).toBe(1);
+  });
+
+  it("shows an alert when hls.js reports a fatal error", () => {
+    render(<VideoPlayer manifestUrl="https://example.test/master.m3u8" />);
+    const instance = instances[0];
+
+    act(() => {
+      instance.emit(FakeHls.Events.ERROR, { fatal: true, details: "manifestLoadError" });
+    });
+
+    expect(screen.getByRole("alert")).toHaveTextContent("manifestLoadError");
+  });
+
+  it("ignores non-fatal hls.js errors", () => {
+    render(<VideoPlayer manifestUrl="https://example.test/master.m3u8" />);
+    const instance = instances[0];
+
+    act(() => {
+      instance.emit(FakeHls.Events.ERROR, { fatal: false, details: "bufferStalledError" });
+    });
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

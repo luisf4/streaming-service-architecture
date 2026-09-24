@@ -12,11 +12,17 @@ export interface StatusViewProps {
 
 export function StatusView({ videoId }: StatusViewProps) {
   const [status, setStatus] = useState<StatusEvent | null>(null);
+  const [connectionError, setConnectionError] = useState(false);
 
   useEffect(() => {
+    setConnectionError(false);
     const client = new ApiClient(getApiConfig());
-    return subscribeToStatus(client.statusEventsUrl(videoId), setStatus);
+    return subscribeToStatus(client.statusEventsUrl(videoId), setStatus, () => setConnectionError(true));
   }, [videoId]);
+
+  if (connectionError) {
+    return <p role="alert">Lost connection to the status stream. Reload the page to try again.</p>;
+  }
 
   if (!status) {
     return <p>Waiting for status...</p>;
