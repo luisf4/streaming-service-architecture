@@ -71,7 +71,10 @@ docker compose -f infra/docker/docker-compose.yml up -d
 ```
 
 That brings up Postgres, RabbitMQ, MinIO, Nginx, Jaeger, Prometheus,
-Grafana, and all 8 application services. Once it's up:
+Grafana, and all 8 application services. Two one-shot containers
+(`migrate`, `minio-init`) run first and exit - Prisma migrations and the
+`raw`/`hls` MinIO buckets aren't there on a first boot otherwise - and
+every app service waits on both before starting. Once it's up:
 
 | What | Where |
 | --- | --- |
@@ -96,13 +99,22 @@ pnpm run build
 ```
 
 **Not verified in this repo's own development environment**: the sandbox
-this was built in had no Docker daemon, so `docker compose up`,
-`pnpm run test:integration`, the Terraform `plan`/`apply` in
-`infra/terraform/`, and the k6/chaos scripts in `load-tests/` and
-`infra/scale/` were written and unit-tested in isolation but never run
-against a real live stack end to end. Everything under `pnpm run test`
-(unit tests, including several against real `ffmpeg`/`ffprobe` binaries)
-did run and pass.
+this was built in had no Docker daemon at all (not even the `docker` CLI),
+so `docker compose up`, `pnpm run test:integration`, the Terraform
+`plan`/`apply` in `infra/terraform/`, and the k6/chaos scripts in
+`load-tests/` and `infra/scale/` were written and unit-tested in isolation
+but never run against a real live stack end to end. Everything under
+`pnpm run test` (unit tests, including several against real
+`ffmpeg`/`ffprobe` binaries) did run and pass, as did the full
+`pnpm run build`.
+
+Two bugs that only show up on a real `docker compose up` were caught by
+code review instead of by running it, so treat them as unverified fixes:
+`migrate`/`minio-init` (above) depend on Compose's
+`service_completed_successfully` condition (Compose v2.20+), and
+`S3_PUBLIC_ENDPOINT` assumes Nginx forwards the `Host` header unchanged
+(`proxy_set_header Host $host` in `nginx.conf`) so a presigned URL's
+signature still matches once MinIO sees it.
 
 ## What happens when X fails
 

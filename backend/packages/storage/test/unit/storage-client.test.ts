@@ -87,4 +87,24 @@ describe("StorageClient", () => {
     expect(url).toContain("videos/a/master.m3u8");
     expect(url).toContain("X-Amz-Expires=60");
   });
+
+  it("presigns against presignS3's endpoint, not s3's, when the two differ", async () => {
+    const internal = new S3Client({
+      region: "us-east-1",
+      endpoint: "http://minio:9000",
+      forcePathStyle: true,
+      credentials: { accessKeyId: "test", secretAccessKey: "test" },
+    });
+    const public_ = new S3Client({
+      region: "us-east-1",
+      endpoint: "http://localhost:8080",
+      forcePathStyle: true,
+      credentials: { accessKeyId: "test", secretAccessKey: "test" },
+    });
+    const client = new StorageClient(internal, "hls", public_);
+
+    const url = await client.presignGetObject("videos/a/master.m3u8", 60);
+
+    expect(url.startsWith("http://localhost:8080/")).toBe(true);
+  });
 });

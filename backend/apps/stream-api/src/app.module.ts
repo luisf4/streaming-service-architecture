@@ -37,7 +37,12 @@ import { VideosService } from "./videos/videos.service";
           return new CloudFrontManifestUrlSigner(cdn);
         }
         const storage = config.get("storage", { infer: true });
-        return new S3ManifestUrlSigner(new StorageClient(createS3Client(storage), storage.hlsBucket));
+        const presignClient = storage.publicEndpoint
+          ? createS3Client({ ...storage, endpoint: storage.publicEndpoint })
+          : undefined;
+        return new S3ManifestUrlSigner(
+          new StorageClient(createS3Client(storage), storage.hlsBucket, presignClient),
+        );
       },
       inject: [ConfigService],
     },

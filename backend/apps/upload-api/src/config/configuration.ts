@@ -8,6 +8,8 @@ export interface AppConfig {
   };
   storage: {
     endpoint?: string;
+    /** Host presigned upload-part URLs are signed against - see StorageClient's presignS3. */
+    publicEndpoint?: string;
     region: string;
     accessKeyId: string;
     secretAccessKey: string;
@@ -25,6 +27,7 @@ export default (): AppConfig => ({
   },
   storage: {
     endpoint: process.env.S3_ENDPOINT,
+    publicEndpoint: process.env.S3_PUBLIC_ENDPOINT,
     region: process.env.S3_REGION ?? "us-east-1",
     accessKeyId: process.env.S3_ACCESS_KEY_ID ?? "streaming",
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? "streamingsecret",

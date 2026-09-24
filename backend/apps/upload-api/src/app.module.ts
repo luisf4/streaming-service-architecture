@@ -49,7 +49,10 @@ import { VideosService } from "./videos/videos.service";
       provide: STORAGE_CLIENT,
       useFactory: (config: ConfigService<AppConfig, true>): StorageClient => {
         const storage = config.get("storage", { infer: true });
-        return new StorageClient(createS3Client(storage), storage.rawBucket);
+        const presignClient = storage.publicEndpoint
+          ? createS3Client({ ...storage, endpoint: storage.publicEndpoint })
+          : undefined;
+        return new StorageClient(createS3Client(storage), storage.rawBucket, presignClient);
       },
       inject: [ConfigService],
     },
