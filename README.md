@@ -98,23 +98,33 @@ pnpm run typecheck
 pnpm run build
 ```
 
-**Not verified in this repo's own development environment**: the sandbox
-this was built in had no Docker daemon at all (not even the `docker` CLI),
-so `docker compose up`, `pnpm run test:integration`, the Terraform
-`plan`/`apply` in `infra/terraform/`, and the k6/chaos scripts in
-`load-tests/` and `infra/scale/` were written and unit-tested in isolation
-but never run against a real live stack end to end. Everything under
-`pnpm run test` (unit tests, including several against real
-`ffmpeg`/`ffprobe` binaries) did run and pass, as did the full
-`pnpm run build`.
+**`docker compose up` has been run end to end** (Docker wasn't available
+when most of this was built - see git history) with a real generated MP4:
+upload → `video.uploaded` → validator (real `ffprobe`) → dispatcher
+(keyframe-aligned chunks) → transcoder → aggregator → `video.ready`, all
+the way to `GET /videos/:id/play` returning a signed URL whose manifest,
+sub-playlists and segments all played back through Nginx. That run
+surfaced and fixed several bugs no unit test caught: a Prisma engine
+built for the wrong OpenSSL version on arm64, `@aws-sdk/client-s3`'s
+default checksum behavior breaking every presigned URL, Nginx's 1 MB body
+cap and its `$host` variable dropping the port (breaking SigV4
+signatures), a `BigInt` field that crashed `JSON.stringify` on the first
+real response, and MinIO's Docker Hub images having moved to `quay.io`.
 
-Two bugs that only show up on a real `docker compose up` were caught by
-code review instead of by running it, so treat them as unverified fixes:
-`migrate`/`minio-init` (above) depend on Compose's
-`service_completed_successfully` condition (Compose v2.20+), and
-`S3_PUBLIC_ENDPOINT` assumes Nginx forwards the `Host` header unchanged
-(`proxy_set_header Host $host` in `nginx.conf`) so a presigned URL's
-signature still matches once MinIO sees it.
+**Known gap, not fixed**: hls.js resolves a sub-resolution playlist and
+its `.ts` segments as paths relative to the master `.m3u8` - none of
+which carry the master's own presigned query string. `stream-api` only
+signs the master, so anything past it 403s unless the bucket allows
+anonymous reads. `minio-init` sets `local/hls` to public `download` for
+exactly this reason; the same problem exists in the CloudFront path
+(`CloudFrontManifestUrlSigner` signs one object too) and isn't fixed
+there - Fase 10 needs either a wildcard/custom CloudFront policy or an
+authenticated proxy for HLS sub-resources.
+
+Not run in this environment: `pnpm run test:integration` (Testcontainers
+pull additional images), the Terraform `plan`/`apply` in
+`infra/terraform/`, and the k6/chaos scripts in `load-tests/` and
+`infra/scale/`.
 
 ## What happens when X fails
 
@@ -151,15 +161,13 @@ real run rather than invented numbers.
 
 ## Screenshots / GIF
 
-Not included. Capturing the player in action, or Jaeger/Grafana with real
-traces and metrics flowing, needs the stack actually running end to end
-with a real video pushed through it - which this environment couldn't do
-(no Docker). Once `docker compose up` runs somewhere with a display,
-`docs/adrs/` and this README are the place to add them.
+Not included. The stack now runs end to end (see above) and a video
+played back through it in this same environment, but there's no display
+here to record a browser against - `docs/adrs/` and this README are the
+place to add a GIF of the player and prints of Jaeger/Grafana once someone
+runs `docker compose up` with one.
 
 The Grafana dashboard itself (`infra/docker/grafana/provisioning/dashboards/`)
 is provisioned and loads automatically with the stack - queue depth,
 jobs/s and DLQ rate by service, job duration (p50/p95), and time-to-READY
-per video (p50/p95, the metric behind the benchmark table above). What's
-missing is a screenshot of it with real traffic flowing, for the same
-no-Docker reason as the rest of this section.
+per video (p50/p95, the metric behind the benchmark table above).
