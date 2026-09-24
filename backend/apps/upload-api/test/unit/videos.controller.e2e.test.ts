@@ -84,6 +84,27 @@ describe("VideosController (HTTP)", () => {
     expect(response.body).toEqual({ id: "v1", status: "READY" });
   });
 
+  it("GET /videos/:id serializes fine when the video carries a BigInt sizeBytes (Prisma's real shape)", async () => {
+    videosService.getVideo.mockResolvedValue({
+      id: "v1",
+      title: "t",
+      description: null,
+      status: "READY",
+      originalFilename: "a.mp4",
+      sizeBytes: 5242880n,
+      durationSec: null,
+      manifestKey: "videos/v1/master.m3u8",
+      failureReason: null,
+      createdAt: new Date("2026-01-01T00:00:00Z"),
+      updatedAt: new Date("2026-01-01T00:00:00Z"),
+    });
+
+    const response = await request(app.getHttpServer()).get("/videos/v1").expect(200);
+
+    expect(response.body.sizeBytes).toBeUndefined();
+    expect(response.body.id).toBe("v1");
+  });
+
   it("GET /videos/:id/events streams status updates as SSE", async () => {
     videosService.streamStatus.mockReturnValue(
       of({ status: "READY", manifestKey: "videos/v1/master.m3u8", failureReason: null }),

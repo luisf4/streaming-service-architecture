@@ -1,5 +1,10 @@
 generator client {
   provider = "prisma-client-js"
+  // "native" alone picked the wrong OpenSSL variant building the Docker
+  // images on arm64 (generated openssl-1.1.x, ran against openssl-3.0.x on
+  // node:20-slim/bookworm) - bundle the target the containers actually
+  // need explicitly rather than trusting native detection.
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {

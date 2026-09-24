@@ -5,7 +5,7 @@ import { CompleteUploadDto } from "./dto/complete-upload.dto";
 import { CreateVideoDto } from "./dto/create-video.dto";
 import { PresignPartResponseDto } from "./dto/presign-part-response.dto";
 import { StartUploadResponseDto } from "./dto/start-upload-response.dto";
-import { VideoResponseDto } from "./dto/video-response.dto";
+import { toVideoResponseDto, VideoResponseDto } from "./dto/video-response.dto";
 import type { StatusPayload } from "../status/status-stream";
 import { VideosService } from "./videos.service";
 
@@ -39,16 +39,16 @@ export class VideosController {
   @Post(":id/complete")
   @ApiOperation({ summary: "Complete a multipart upload and mark the video UPLOADED" })
   @ApiCreatedResponse({ type: VideoResponseDto })
-  completeUpload(@Param("id") id: string, @Body() dto: CompleteUploadDto): Promise<VideoResponseDto> {
-    return this.videosService.completeUpload(id, dto);
+  async completeUpload(@Param("id") id: string, @Body() dto: CompleteUploadDto): Promise<VideoResponseDto> {
+    return toVideoResponseDto(await this.videosService.completeUpload(id, dto));
   }
 
   @Get(":id")
   @ApiOperation({ summary: "Get a video by id" })
   @ApiParam({ name: "id", description: "Video id" })
   @ApiOkResponse({ type: VideoResponseDto })
-  getVideo(@Param("id") id: string): Promise<VideoResponseDto> {
-    return this.videosService.getVideo(id);
+  async getVideo(@Param("id") id: string): Promise<VideoResponseDto> {
+    return toVideoResponseDto(await this.videosService.getVideo(id));
   }
 
   @Sse(":id/events")
