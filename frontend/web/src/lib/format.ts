@@ -10,3 +10,18 @@ export function formatBytes(bytes: number): string {
   const precision = unitIndex === 0 ? 0 : 1;
   return `${value.toFixed(precision)} ${UNITS[unitIndex]}`;
 }
+
+export function formatDuration(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+const dateFormatter = new Intl.DateTimeFormat("en", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+export function formatDate(iso: string): string {
+  return dateFormatter.format(new Date(iso));
+}

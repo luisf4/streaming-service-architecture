@@ -30,6 +30,12 @@ describe("VideoRepository", () => {
     expect(prisma.video.findUnique).toHaveBeenCalledWith({ where: { id } });
   });
 
+  it("finds all videos, most recently created first", async () => {
+    await repository.findAll(prisma);
+
+    expect(prisma.video.findMany).toHaveBeenCalledWith({ orderBy: { createdAt: "desc" } });
+  });
+
   it("updates status plus any extra fields", async () => {
     const id = randomUUID();
 

@@ -28,6 +28,10 @@ export class VideoRepository {
     return db.video.findUnique({ where: { id } });
   }
 
+  async findAll(db: DbClient) {
+    return db.video.findMany({ orderBy: { createdAt: "desc" } });
+  }
+
   async updateStatus(db: DbClient, id: string, status: VideoStatus, extra: UpdateVideoStatusExtra = {}) {
     return db.video.update({ where: { id }, data: { status, ...extra } });
   }

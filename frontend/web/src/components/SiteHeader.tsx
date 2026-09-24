@@ -7,6 +7,14 @@ export function SiteHeader() {
         <a href="/" className={styles.brand}>
           Video Streaming
         </a>
+        <nav className={styles.nav}>
+          <a href="/" className={styles.navLink}>
+            Upload
+          </a>
+          <a href="/videos" className={styles.navLink}>
+            Videos
+          </a>
+        </nav>
       </div>
     </header>
   );

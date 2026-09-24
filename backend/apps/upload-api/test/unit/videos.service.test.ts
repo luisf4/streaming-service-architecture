@@ -129,4 +129,14 @@ describe("VideosService", () => {
       await expect(service.getVideo(videoId)).resolves.toEqual({ id: videoId });
     });
   });
+
+  describe("listVideos", () => {
+    it("returns every video, most recently created first", async () => {
+      const videos = [{ id: "v2" }, { id: "v1" }];
+      prisma.video.findMany.mockResolvedValue(videos as never);
+
+      await expect(service.listVideos()).resolves.toEqual(videos);
+      expect(prisma.video.findMany).toHaveBeenCalledWith({ orderBy: { createdAt: "desc" } });
+    });
+  });
 });

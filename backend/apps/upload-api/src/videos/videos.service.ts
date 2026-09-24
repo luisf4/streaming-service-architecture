@@ -99,6 +99,10 @@ export class VideosService {
     return video;
   }
 
+  async listVideos(): Promise<Video[]> {
+    return this.videos.findAll(this.prisma);
+  }
+
   streamStatus(videoId: string): Observable<StatusPayload> {
     const poll = async (): Promise<StatusPayload | null> => {
       const video = await this.videos.findById(this.prisma, videoId);

@@ -14,6 +14,7 @@ describe("VideosController (HTTP)", () => {
     presignPart: vi.fn(),
     completeUpload: vi.fn(),
     getVideo: vi.fn(),
+    listVideos: vi.fn(),
     streamStatus: vi.fn(),
   };
 
@@ -103,6 +104,20 @@ describe("VideosController (HTTP)", () => {
 
     expect(response.body.sizeBytes).toBeUndefined();
     expect(response.body.id).toBe("v1");
+  });
+
+  it("GET /videos lists every video", async () => {
+    videosService.listVideos.mockResolvedValue([
+      { id: "v2", status: "READY" },
+      { id: "v1", status: "PROCESSING" },
+    ]);
+
+    const response = await request(app.getHttpServer()).get("/videos").expect(200);
+
+    expect(response.body).toEqual([
+      { id: "v2", status: "READY" },
+      { id: "v1", status: "PROCESSING" },
+    ]);
   });
 
   it("GET /videos/:id/events streams status updates as SSE", async () => {

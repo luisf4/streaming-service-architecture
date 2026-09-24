@@ -11,7 +11,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** List all videos, most recently created first */
+        get: operations["VideosController_listVideos"];
         put?: never;
         /** Create a video and start a multipart upload */
         post: operations["VideosController_startUpload"];
@@ -139,6 +140,25 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    VideosController_listVideos: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoResponseDto"][];
+                };
+            };
+        };
+    };
     VideosController_startUpload: {
         parameters: {
             query?: never;

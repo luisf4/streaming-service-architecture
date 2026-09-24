@@ -50,6 +50,10 @@ export class ApiClient {
     return fetch(`${this.config.uploadApiUrl}/videos/${videoId}`).then((r) => asJson<VideoResponse>(r));
   }
 
+  listVideos(): Promise<VideoResponse[]> {
+    return fetch(`${this.config.uploadApiUrl}/videos`).then((r) => asJson<VideoResponse[]>(r));
+  }
+
   statusEventsUrl(videoId: string): string {
     return `${this.config.uploadApiUrl}/videos/${videoId}/events`;
   }

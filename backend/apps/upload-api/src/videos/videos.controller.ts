@@ -43,6 +43,14 @@ export class VideosController {
     return toVideoResponseDto(await this.videosService.completeUpload(id, dto));
   }
 
+  @Get()
+  @ApiOperation({ summary: "List all videos, most recently created first" })
+  @ApiOkResponse({ type: VideoResponseDto, isArray: true })
+  async listVideos(): Promise<VideoResponseDto[]> {
+    const videos = await this.videosService.listVideos();
+    return videos.map(toVideoResponseDto);
+  }
+
   @Get(":id")
   @ApiOperation({ summary: "Get a video by id" })
   @ApiParam({ name: "id", description: "Video id" })
