@@ -52,8 +52,17 @@ Needs Docker (compose v2) and Node >=20 with pnpm.
 ```bash
 pnpm install
 cp .env.example .env   # only needed running an app outside docker-compose
-docker compose -f infra/docker/docker-compose.yml up -d --build
+./infra/docker/build.sh
 ```
+
+`build.sh` builds each of the 7 backend services one at a time, then runs
+`docker compose up -d`. Building them the plain way -
+`docker compose -f infra/docker/docker-compose.yml up -d --build` - hands
+all 7 to Compose's `bake` builder at once (the only build path since
+Compose v5, no flag turns it off), which runs all 7 `pnpm install`s
+concurrently; Docker Desktop's memory limit isn't always enough for that
+many Node processes at once and the build dies with `ResourceExhausted:
+... cannot allocate memory`.
 
 That brings up Postgres, RabbitMQ, MinIO, Nginx, Jaeger, Prometheus,
 Grafana, and all 8 application services. Two one-shot containers
@@ -109,7 +118,8 @@ built for the wrong OpenSSL version on arm64, `@aws-sdk/client-s3`'s
 default checksum behavior breaking every presigned URL, Nginx's 1 MB body
 cap and its `$host` variable dropping the port (breaking SigV4
 signatures), a `BigInt` field that crashed `JSON.stringify` on the first
-real response, and MinIO's Docker Hub images having moved to `quay.io`.
+real response, and MinIO's public images (Docker Hub, then `quay.io`)
+being pulled - it now runs on `cgr.dev/chainguard/minio`.
 
 **Known gap, not fixed**: hls.js resolves a sub-resolution playlist and
 its `.ts` segments as paths relative to the master `.m3u8` - none of

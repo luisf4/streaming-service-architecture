@@ -52,9 +52,9 @@ services:
       retries: 10
 
   minio:
-    # minio/minio is no longer pullable anonymously from Docker Hub -
-    # quay.io/minio/minio is the community edition's current home.
-    image: quay.io/minio/minio:latest
+    # Neither Docker Hub's minio/minio nor quay.io/minio/* is pullable
+    # anonymously anymore; Chainguard's build is, and ships mc + sh.
+    image: cgr.dev/chainguard/minio:latest
     restart: unless-stopped
     environment:
       MINIO_ROOT_USER: streaming
@@ -133,7 +133,8 @@ services:
 
   # One-shot: creates the raw/hls buckets MinIO doesn't have on first boot, then exits.
   minio-init:
-    image: quay.io/minio/mc:latest
+    # Same image as minio: chainguard/minio-client has no shell for the entrypoint below.
+    image: cgr.dev/chainguard/minio:latest
     restart: "no"
     depends_on:
       minio:
